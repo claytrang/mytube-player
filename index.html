@@ -13,6 +13,32 @@
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      background: transparent;
+      cursor: pointer;
+    }
+    input[type="range"]::-webkit-slider-runnable-track {
+      height: 4px;
+      border-radius: 2px;
+      background: #27272a;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      height: 12px;
+      width: 12px;
+      border-radius: 50%;
+      background: #10b981;
+      margin-top: -4px;
+      transition: transform 0.15s ease;
+    }
+    input[type="range"]:hover::-webkit-slider-thumb {
+      transform: scale(1.25);
+      background: #34d399;
+    }
   </style>
 </head>
 <body class="bg-zinc-950 text-zinc-100 h-screen flex flex-col overflow-hidden select-none">
@@ -32,25 +58,31 @@
         </button>
       </div>
 
-      <div id="playlist-list" class="flex-1 overflow-y-auto p-3 space-y-1">
-        <!-- รายการ Playlist จะแสดงที่นี่ -->
-      </div>
+      <div id="playlist-list" class="flex-1 overflow-y-auto p-3 space-y-1"></div>
     </aside>
 
     <!-- Center & Right Content -->
     <main class="flex-1 flex flex-col overflow-hidden">
       
       <!-- Top Search Bar -->
-      <header class="p-4 border-b border-zinc-800/80 flex items-center gap-3 bg-zinc-950/80 backdrop-blur">
-        <div class="relative flex-1 max-w-xl">
-          <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500"></i>
-          <input id="search-input" type="text" placeholder="ค้นหาเพลง หรือวิดีโอ YouTube..." 
-            onkeydown="if(event.key==='Enter') searchYouTube()"
-            class="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-10 pr-4 py-2 text-sm text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 transition">
+      <header class="p-4 border-b border-zinc-800/80 flex items-center justify-between gap-3 bg-zinc-950/80 backdrop-blur">
+        <div class="flex items-center gap-3 flex-1 max-w-2xl">
+          <div class="relative flex-1">
+            <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500"></i>
+            <input id="search-input" type="text" placeholder="ค้นหาเพลง หรือวิดีโอ YouTube..." 
+              onkeydown="if(event.key==='Enter') searchYouTube()"
+              class="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-10 pr-4 py-2 text-sm text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 transition">
+          </div>
+          <button onclick="searchYouTube()" class="px-4 py-2 bg-zinc-100 text-zinc-900 font-medium text-sm rounded-xl hover:bg-white transition shrink-0">
+            ค้นหา
+          </button>
         </div>
-        <button onclick="searchYouTube()" class="px-4 py-2 bg-zinc-100 text-zinc-900 font-medium text-sm rounded-xl hover:bg-white transition">
-          ค้นหา
-        </button>
+
+        <!-- AdBlock Status Badge -->
+        <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs">
+          <i data-lucide="shield-check" class="w-4 h-4"></i>
+          <span id="adblock-status">AdGuard: พร้อมทำงาน</span>
+        </div>
       </header>
 
       <!-- Content Split: Player/Search (Left) & Active Queue (Right) -->
@@ -61,16 +93,23 @@
           
           <!-- Video Container (Fullscreen Target) -->
           <div id="player-container" class="relative w-full aspect-video bg-black rounded-2xl overflow-hidden border border-zinc-800/80 shadow-2xl group">
-            <div id="yt-player" class="w-full h-full pointer-events-none"></div>
-            <!-- แผ่นใสป้องกันการคลิกโฆษณาแฝง แต่กดปุ่มควบคุมผ่านแถบด้านล่างได้ -->
+            <!-- Engine 1: HTML5 Native Video (ไร้โฆษณา 100%) -->
+            <video id="native-player" class="w-full h-full hidden object-contain bg-black" playsinline></video>
+            
+            <!-- Engine 2: YouTube IFrame + Auto Ad-Skipper -->
+            <div id="yt-player-wrap" class="w-full h-full">
+              <div id="yt-player" class="w-full h-full pointer-events-none"></div>
+            </div>
+
+            <!-- แผ่นใสรับการคลิกเล่น/หยุด และป้องกันโฆษณาเด้ง -->
             <div onclick="togglePlay()" class="absolute inset-0 cursor-pointer"></div>
           </div>
 
           <!-- Search Results Section -->
           <div id="search-section" class="hidden space-y-3">
             <div class="flex items-center justify-between">
-              <h3 class="text-xs font-semibold uppercase tracking-wider text-zinc-400">ผลการค้นหา</h3>
-              <button onclick="document.getElementById('search-section').classList.add('hidden')" class="text-xs text-zinc-500 hover:text-zinc-300">ซ่อน</button>
+              <h3 id="search-count-title" class="text-xs font-semibold uppercase tracking-wider text-zinc-400">ผลการค้นหา</h3>
+              <button onclick="document.getElementById('search-section').classList.add('hidden')" class="text-xs text-zinc-500 hover:text-zinc-300">ซ่อนผลการค้นหา</button>
             </div>
             <div id="search-results" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
           </div>
@@ -85,9 +124,7 @@
               <p id="current-playlist-count" class="text-xs text-zinc-500">0 รายการ</p>
             </div>
           </div>
-          <div id="queue-list" class="flex-1 overflow-y-auto p-3 space-y-1.5">
-            <!-- วิดีโอใน Playlist ปัจจุบัน -->
-          </div>
+          <div id="queue-list" class="flex-1 overflow-y-auto p-3 space-y-1.5"></div>
         </div>
 
       </div>
@@ -95,11 +132,12 @@
   </div>
 
   <!-- Bottom Control Bar -->
-  <footer class="h-20 bg-zinc-900/90 border-t border-zinc-800 px-6 flex items-center justify-between backdrop-blur">
-    <!-- Now Playing Info -->
-    <div class="w-1/3 flex items-center gap-3 overflow-hidden">
-      <div class="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center shrink-0">
-        <i data-lucide="music" class="w-4 h-4 text-zinc-400"></i>
+  <footer class="h-24 bg-zinc-900/95 border-t border-zinc-800 px-6 flex items-center justify-between gap-4 backdrop-blur">
+    
+    <!-- 1. Now Playing Info -->
+    <div class="w-1/4 flex items-center gap-3 overflow-hidden">
+      <div class="w-11 h-11 rounded-xl bg-zinc-800 flex items-center justify-center shrink-0">
+        <i data-lucide="music" class="w-5 h-5 text-zinc-400"></i>
       </div>
       <div class="truncate">
         <div id="now-playing-title" class="text-sm font-medium text-zinc-200 truncate">ยังไม่ได้เลือกวิดีโอ</div>
@@ -107,28 +145,60 @@
       </div>
     </div>
 
-    <!-- Playback Controls -->
-    <div class="flex items-center gap-4">
-      <button id="btn-shuffle" onclick="toggleShuffle()" title="สุ่มเพลง (Random)" class="p-2 rounded-lg text-zinc-400 hover:text-white transition">
-        <i data-lucide="shuffle" class="w-4 h-4"></i>
-      </button>
-      <button onclick="prevVideo()" title="ก่อนหน้า" class="p-2 rounded-lg text-zinc-300 hover:text-white transition">
-        <i data-lucide="skip-back" class="w-5 h-5"></i>
-      </button>
-      <button onclick="togglePlay()" id="btn-play" title="เล่น/หยุด" class="w-11 h-11 rounded-full bg-white text-zinc-950 flex items-center justify-center hover:scale-105 transition shadow">
-        <i data-lucide="play" class="w-5 h-5 fill-current"></i>
-      </button>
-      <button onclick="nextVideo()" title="ถัดไป (ข้าม)" class="p-2 rounded-lg text-zinc-300 hover:text-white transition">
-        <i data-lucide="skip-forward" class="w-5 h-5"></i>
-      </button>
+    <!-- 2. Center Controls: Buttons + Progress Bar -->
+    <div class="flex-1 max-w-xl flex flex-col items-center gap-2">
+      <div class="flex items-center gap-5">
+        <button id="btn-shuffle" onclick="toggleShuffle()" title="สุ่มเพลง (Random)" class="p-1.5 rounded-lg text-zinc-400 hover:text-white transition">
+          <i data-lucide="shuffle" class="w-4 h-4"></i>
+        </button>
+        <button onclick="prevVideo()" title="ก่อนหน้า" class="p-1.5 rounded-lg text-zinc-300 hover:text-white transition">
+          <i data-lucide="skip-back" class="w-5 h-5"></i>
+        </button>
+        <button onclick="togglePlay()" id="btn-play" title="เล่น/หยุด" class="w-10 h-10 rounded-full bg-white text-zinc-950 flex items-center justify-center hover:scale-105 transition shadow">
+          <i data-lucide="play" class="w-5 h-5 fill-current"></i>
+        </button>
+        <button onclick="nextVideo()" title="ถัดไป (ข้าม)" class="p-1.5 rounded-lg text-zinc-300 hover:text-white transition">
+          <i data-lucide="skip-forward" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="w-full flex items-center gap-3">
+        <span id="current-time" class="text-[11px] font-mono text-zinc-400 w-10 text-right">0:00</span>
+        <input id="progress-bar" type="range" min="0" max="100" value="0" step="0.1"
+          oninput="onSeekInput(this.value)" onchange="onSeekChange(this.value)"
+          class="flex-1">
+        <span id="total-duration" class="text-[11px] font-mono text-zinc-400 w-10">0:00</span>
+      </div>
     </div>
 
-    <!-- Right Controls: Fullscreen -->
-    <div class="w-1/3 flex justify-end items-center gap-3">
-      <button onclick="toggleFullscreen()" title="แสดงผลเต็มจอ" class="p-2.5 rounded-xl bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 hover:text-white transition">
+    <!-- 3. Right Controls: Speed, Volume, Fullscreen -->
+    <div class="w-1/4 flex justify-end items-center gap-4">
+      <div class="flex items-center bg-zinc-800/80 rounded-lg px-2 py-1 border border-zinc-700/50" title="ความเร็วการเล่น">
+        <i data-lucide="gauge" class="w-3.5 h-3.5 text-zinc-400 mr-1.5"></i>
+        <select id="speed-select" onchange="changeSpeed(this.value)" class="bg-transparent text-xs font-medium text-zinc-200 focus:outline-none cursor-pointer">
+          <option value="0.5" class="bg-zinc-900">0.5x</option>
+          <option value="0.75" class="bg-zinc-900">0.75x</option>
+          <option value="1" selected class="bg-zinc-900">1x</option>
+          <option value="1.25" class="bg-zinc-900">1.25x</option>
+          <option value="1.5" class="bg-zinc-900">1.5x</option>
+          <option value="2" class="bg-zinc-900">2x</option>
+        </select>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button onclick="toggleMute()" id="btn-mute" title="เปิด/ปิดเสียง" class="text-zinc-400 hover:text-white transition">
+          <i data-lucide="volume-2" class="w-4 h-4"></i>
+        </button>
+        <input id="volume-bar" type="range" min="0" max="100" value="100" 
+          oninput="changeVolume(this.value)"
+          class="w-20" title="ระดับเสียง">
+      </div>
+
+      <button onclick="toggleFullscreen()" title="แสดงผลเต็มจอ" class="p-2 rounded-xl bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 hover:text-white transition">
         <i data-lucide="maximize" class="w-4 h-4"></i>
       </button>
     </div>
+
   </footer>
 
   <!-- YouTube IFrame API -->
@@ -138,18 +208,49 @@
     // ตั้งค่า URL ของคุณที่นี่
     // ==========================================
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbzjjupok9r0AxMTLzitlxd0kPHwylpsUI1x9aNsJ62d9DnZUYiRgEbTzgi65u_94XNPNw/exec';
-    const RENDER_API_URL = 'https://mytube-backend-0ht8.onrender.com'; // เช่น https://mytube-backend.onrender.com
+    const RENDER_API_URL = 'https://mytube-backend-0ht8.onrender.com';
 
     let playlists = [];
     let activePlaylistId = null;
     let currentIndex = -1;
     let isShuffle = false;
     let isPlaying = false;
+    let isSeeking = false;
+    let currentSpeed = 1;
+    let currentVolume = 100;
+    let isMuted = false;
+    let activeEngine = 'yt'; // 'native' หรือ 'yt'
+    let expectedDuration = 0; // ความยาวจริงของวิดีโอเพื่อใช้เทียบกับโฆษณา
+    let progressTimer = null;
     let player;
+    const nativeVideo = document.getElementById('native-player');
 
     lucide.createIcons();
 
-    // 1. เริ่มต้น YouTube Player แบบไร้คุกกี้โฆษณา (youtube-nocookie)
+    // ตั้งค่า Native HTML5 Video Events
+    nativeVideo.addEventListener('play', () => {
+      if (activeEngine !== 'native') return;
+      isPlaying = true;
+      nativeVideo.playbackRate = currentSpeed;
+      updatePlayButton();
+      startProgressTimer();
+      document.getElementById('now-playing-status').innerText = 'กำลังเล่น (Direct ไร้โฆษณา)';
+    });
+    nativeVideo.addEventListener('pause', () => {
+      if (activeEngine !== 'native') return;
+      isPlaying = false;
+      updatePlayButton();
+      document.getElementById('now-playing-status').innerText = 'หยุดชั่วคราว';
+    });
+    nativeVideo.addEventListener('ended', () => {
+      if (activeEngine !== 'native') return;
+      nextVideo();
+    });
+    nativeVideo.addEventListener('error', () => {
+      if (activeEngine === 'native') fallbackToYouTubeIframe();
+    });
+
+    // 1. เริ่มต้น YouTube IFrame Player
     function onYouTubeIframeAPIReady() {
       player = new YT.Player('yt-player', {
         height: '100%',
@@ -161,31 +262,146 @@
           rel: 0,
           modestbranding: 1,
           iv_load_policy: 3,
-          disablekb: 1
+          disablekb: 1,
+          origin: window.location.origin
         },
         events: {
+          onReady: () => player.setVolume(100),
           onStateChange: onPlayerStateChange,
-          onError: () => nextVideo() // ข้ามอัตโนมัติหากวิดีโอมีปัญหา
+          onError: () => nextVideo()
         }
       });
       loadPlaylists();
     }
 
     function onPlayerStateChange(event) {
+      if (activeEngine !== 'yt') return;
       if (event.data === YT.PlayerState.ENDED) {
+        stopProgressTimer();
         nextVideo();
       } else if (event.data === YT.PlayerState.PLAYING) {
         isPlaying = true;
+        player.setPlaybackRate(currentSpeed);
         updatePlayButton();
+        startProgressTimer();
         document.getElementById('now-playing-status').innerText = 'กำลังเล่น';
       } else if (event.data === YT.PlayerState.PAUSED) {
         isPlaying = false;
+        stopProgressTimer();
         updatePlayButton();
         document.getElementById('now-playing-status').innerText = 'หยุดชั่วคราว';
       }
     }
 
-    // 2. ระบบจัดการฐานข้อมูล Google Sheets (CRUD Playlists)
+    // 2. ระบบจัดการแถบเวลา + ระบบตรวจจับและกระโดดข้ามโฆษณาอัตโนมัติ (Ad-Fast-Forward)
+    function formatTime(sec) {
+      if (!sec || isNaN(sec)) return '0:00';
+      sec = Math.floor(sec);
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      return `${m}:${s < 10 ? '0' : ''}${s}`;
+    }
+
+    function startProgressTimer() {
+      stopProgressTimer();
+      progressTimer = setInterval(() => {
+        if (!isPlaying || isSeeking) return;
+
+        let current = 0;
+        let duration = 0;
+
+        if (activeEngine === 'native') {
+          current = nativeVideo.currentTime || 0;
+          duration = nativeVideo.duration || 0;
+        } else if (player && player.getCurrentTime) {
+          current = player.getCurrentTime() || 0;
+          duration = player.getDuration() || 0;
+
+          // ตรวจจับโฆษณาแทรกใน IFrame:
+          // หากความยาวคลิปที่กำลังเล่นสั้นกว่าความยาวจริงมาก (เช่น โฆษณา 15-60 วินาที ในขณะที่เพลงยาว 240 วินาที)
+          if (expectedDuration > 90 && duration > 0 && duration < 65 && Math.abs(duration - expectedDuration) > 60) {
+            document.getElementById('adblock-status').innerText = 'กำลังข้ามโฆษณาอัตโนมัติ...';
+            player.mute();
+            player.seekTo(duration, true); // กระโดดไปวินาทีสุดท้ายของโฆษณาทันที
+            return;
+          } else {
+            if (!isMuted && player.isMuted()) player.unMute();
+            document.getElementById('adblock-status').innerText = 'AdGuard: ทำงานปกติ';
+          }
+        }
+
+        if (duration > 0) {
+          document.getElementById('progress-bar').value = (current / duration) * 100;
+          document.getElementById('current-time').innerText = formatTime(current);
+          document.getElementById('total-duration').innerText = formatTime(duration);
+        }
+      }, 400);
+    }
+
+    function stopProgressTimer() {
+      if (progressTimer) clearInterval(progressTimer);
+    }
+
+    function onSeekInput(percent) {
+      isSeeking = true;
+      const duration = activeEngine === 'native' ? (nativeVideo.duration || 0) : (player ? player.getDuration() || 0 : 0);
+      const targetTime = (percent / 100) * duration;
+      document.getElementById('current-time').innerText = formatTime(targetTime);
+    }
+
+    function onSeekChange(percent) {
+      const duration = activeEngine === 'native' ? (nativeVideo.duration || 0) : (player ? player.getDuration() || 0 : 0);
+      const targetTime = (percent / 100) * duration;
+      if (activeEngine === 'native') {
+        nativeVideo.currentTime = targetTime;
+      } else if (player) {
+        player.seekTo(targetTime, true);
+      }
+      isSeeking = false;
+    }
+
+    // 3. ระบบปรับระดับเสียงและความเร็ว
+    function changeVolume(val) {
+      currentVolume = Number(val);
+      isMuted = currentVolume === 0;
+      nativeVideo.volume = currentVolume / 100;
+      nativeVideo.muted = isMuted;
+      if (player && player.setVolume) {
+        player.setVolume(currentVolume);
+        if (currentVolume > 0 && player.isMuted()) player.unMute();
+      }
+      updateVolumeIcon(currentVolume, isMuted);
+    }
+
+    function toggleMute() {
+      isMuted = !isMuted;
+      nativeVideo.muted = isMuted;
+      if (player) {
+        if (isMuted) player.mute();
+        else player.unMute();
+      }
+      document.getElementById('volume-bar').value = isMuted ? 0 : currentVolume;
+      updateVolumeIcon(isMuted ? 0 : currentVolume, isMuted);
+    }
+
+    function updateVolumeIcon(vol, muted) {
+      const btn = document.getElementById('btn-mute');
+      let iconName = 'volume-2';
+      if (muted || vol === 0) iconName = 'volume-x';
+      else if (vol < 50) iconName = 'volume-1';
+      btn.innerHTML = `<i data-lucide="${iconName}" class="w-4 h-4"></i>`;
+      lucide.createIcons();
+    }
+
+    function changeSpeed(rate) {
+      currentSpeed = parseFloat(rate);
+      nativeVideo.playbackRate = currentSpeed;
+      if (player && player.setPlaybackRate) {
+        player.setPlaybackRate(currentSpeed);
+      }
+    }
+
+    // 4. ระบบจัดการฐานข้อมูล Google Sheets
     async function loadPlaylists() {
       try {
         const res = await fetch(GAS_URL);
@@ -202,7 +418,6 @@
     }
 
     async function postGAS(payload) {
-      // ส่งแบบ text/plain เพื่อหลีกเลี่ยง CORS Preflight ของ Google Apps Script
       await fetch(GAS_URL, {
         method: 'POST',
         body: JSON.stringify(payload)
@@ -232,7 +447,6 @@
       await loadPlaylists();
     }
 
-    // 3. การเพิ่มและลบวิดีโอใน Playlist
     async function addVideoToPlaylist(video) {
       if (!activePlaylistId) return alert('กรุณาสร้างและเลือก Playlist ด้านซ้ายมือก่อนครับ');
       const pl = playlists.find(p => p.id === activePlaylistId);
@@ -253,20 +467,24 @@
       await postGAS({ action: 'update_videos', id: pl.id, videos: pl.videos });
     }
 
-    // 4. ระบบค้นหาผ่าน Render.com
+    // 5. ระบบค้นหา (แสดงผลสูงสุดทั้งหมด)
     async function searchYouTube() {
       const q = document.getElementById('search-input').value.trim();
       if (!q) return;
 
       const resultsDiv = document.getElementById('search-results');
+      const countTitle = document.getElementById('search-count-title');
       document.getElementById('search-section').classList.remove('hidden');
-      resultsDiv.innerHTML = '<div class="text-xs text-zinc-500 col-span-full">กำลังค้นหา...</div>';
+      countTitle.innerText = 'กำลังค้นหา...';
+      resultsDiv.innerHTML = '';
 
       try {
         const res = await fetch(`${RENDER_API_URL}/api/search?q=${encodeURIComponent(q)}`);
         const data = await res.json();
+        const list = data.results || [];
         
-        resultsDiv.innerHTML = data.results.map(v => `
+        countTitle.innerText = `ผลการค้นหาทั้งหมด (${list.length} รายการ)`;
+        resultsDiv.innerHTML = list.map(v => `
           <div class="bg-zinc-900/60 border border-zinc-800/80 rounded-xl p-2.5 flex gap-3 items-center hover:border-zinc-700 transition">
             <img src="${v.thumbnail}" class="w-20 h-12 object-cover rounded-lg shrink-0">
             <div class="flex-1 min-w-0">
@@ -282,26 +500,80 @@
         `).join('');
         lucide.createIcons();
       } catch (e) {
-        resultsDiv.innerHTML = '<div class="text-xs text-red-400 col-span-full">เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์ค้นหา</div>';
+        countTitle.innerText = 'เกิดข้อผิดพลาด';
+        resultsDiv.innerHTML = '<div class="text-xs text-red-400 col-span-full">ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ค้นหาได้</div>';
       }
     }
 
-    // 5. ระบบควบคุมการเล่น (Play, Pause, Skip, Shuffle, Fullscreen)
-    function playVideoAt(index) {
+    // 6. ระบบเล่นวิดีโอแบบ Dual-Engine (พยายามดึง Direct Stream ไร้โฆษณาก่อน หากติดลิขสิทธิ์จึงสลับไป IFrame)
+    async function playVideoAt(index) {
       const pl = playlists.find(p => p.id === activePlaylistId);
       if (!pl || !pl.videos[index]) return;
 
       currentIndex = index;
       const video = pl.videos[index];
-      player.loadVideoById(video.videoId);
+      expectedDuration = video.seconds || 0;
+
+      document.getElementById('progress-bar').value = 0;
+      document.getElementById('current-time').innerText = '0:00';
       document.getElementById('now-playing-title').innerText = video.title;
+      document.getElementById('now-playing-status').innerText = 'กำลังเตรียมสตรีมไร้โฆษณา...';
       renderQueue();
+
+      // หยุดตัวเล่นเดิมก่อน
+      if (player && player.stopVideo) player.stopVideo();
+      nativeVideo.pause();
+
+      // ลองดึง Direct Stream ไร้โฆษณา 100% จาก Backend ก่อน
+      try {
+        const res = await fetch(`${RENDER_API_URL}/api/stream?id=${video.videoId}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.url) {
+            activeEngine = 'native';
+            document.getElementById('yt-player-wrap').classList.add('hidden');
+            nativeVideo.classList.remove('hidden');
+            document.getElementById('adblock-status').innerText = 'Direct Stream (ไร้โฆษณา 100%)';
+            nativeVideo.src = data.url;
+            nativeVideo.play();
+            return;
+          }
+        }
+      } catch (e) {
+        // หากดึงตรงไม่สำเร็จ จะไปใช้ระบบสำรองด้านล่าง
+      }
+
+      fallbackToYouTubeIframe();
+    }
+
+    function fallbackToYouTubeIframe() {
+      const pl = playlists.find(p => p.id === activePlaylistId);
+      if (!pl || !pl.videos[currentIndex]) return;
+      const video = pl.videos[currentIndex];
+
+      activeEngine = 'yt';
+      nativeVideo.classList.add('hidden');
+      document.getElementById('yt-player-wrap').classList.remove('hidden');
+      document.getElementById('adblock-status').innerText = 'AdGuard: โหมดข้ามโฆษณาอัตโนมัติ';
+
+      // ใช้การส่งแบบ Array playlist เข้า loadPlaylist แทน loadVideoById เพื่อลดการยิง Pre-roll Ad ของ YouTube
+      if (player && player.loadVideoById) {
+        player.loadVideoById({
+          videoId: video.videoId,
+          suggestedQuality: 'large'
+        });
+      }
     }
 
     function togglePlay() {
-      if (!player || currentIndex === -1) return;
-      if (isPlaying) player.pauseVideo();
-      else player.playVideo();
+      if (currentIndex === -1) return;
+      if (activeEngine === 'native') {
+        if (nativeVideo.paused) nativeVideo.play();
+        else nativeVideo.pause();
+      } else if (player) {
+        if (isPlaying) player.pauseVideo();
+        else player.playVideo();
+      }
     }
 
     function updatePlayButton() {
@@ -334,8 +606,8 @@
       isShuffle = !isShuffle;
       const btn = document.getElementById('btn-shuffle');
       btn.className = isShuffle 
-        ? 'p-2 rounded-lg text-emerald-400 bg-emerald-500/10 transition' 
-        : 'p-2 rounded-lg text-zinc-400 hover:text-white transition';
+        ? 'p-1.5 rounded-lg text-emerald-400 bg-emerald-500/10 transition' 
+        : 'p-1.5 rounded-lg text-zinc-400 hover:text-white transition';
     }
 
     function toggleFullscreen() {
@@ -347,7 +619,7 @@
       }
     }
 
-    // 6. การวาดหน้าจอ (Render UI)
+    // 7. การวาดหน้าจอ (Render UI)
     function selectPlaylist(id) {
       activePlaylistId = id;
       currentIndex = -1;
