@@ -1,11 +1,10 @@
 <!DOCTYPE html>
-<html lang="th" class="dark">
+<html lang="th" class="dark" data-theme="emerald">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>MinimalTube Player</title>
   
-  <!-- PWA Meta Tags -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#09090b">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -13,8 +12,14 @@
   <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/1384/1384060.png">
 
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { colors: { brand: { 400: 'rgb(var(--brand-400) / <alpha-value>)', 500: 'rgb(var(--brand-500) / <alpha-value>)' } } } }
+    }
+  </script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+  
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Noto+Sans+Thai:wght@300;400;500;600&display=swap');
     body { font-family: 'Inter', 'Noto Sans Thai', sans-serif; -webkit-tap-highlight-color: transparent; }
@@ -23,41 +28,34 @@
     ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
 
-    input[type="range"] {
-      -webkit-appearance: none;
-      appearance: none;
-      background: transparent;
-      cursor: pointer;
+    :root, [data-theme="emerald"] { --brand-400: 52 211 153; --brand-500: 16 185 129; }
+    [data-theme="blue"] { --brand-400: 96 165 250; --brand-500: 59 130 246; }
+    [data-theme="rose"] { --brand-400: 251 113 133; --brand-500: 244 63 94; }
+    [data-theme="violet"] { --brand-400: 167 139 250; --brand-500: 139 92 246; }
+    [data-theme="amber"] { --brand-400: 251 191 36; --brand-500: 245 158 11; }
+
+    input[type="range"] { -webkit-appearance: none; appearance: none; background: transparent; cursor: pointer; }
+    input[type="range"]::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: #27272a; }
+    input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; height: 12px; width: 12px; border-radius: 50%; background: rgb(var(--brand-500)); margin-top: -4px; transition: transform 0.1s; }
+    input[type="range"]:hover::-webkit-slider-thumb { transform: scale(1.25); background: rgb(var(--brand-400)); }
+    .sortable-ghost { opacity: 0.3; background: rgb(var(--brand-500) / 0.2) !important; }
+    .ambient-glow { box-shadow: 0 0 50px rgb(var(--brand-500) / 0.25), 0 0 100px rgb(var(--brand-500) / 0.15); transition: box-shadow 0.8s ease-in-out; }
+    
+    /* Pseudo-Fullscreen สำหรับมือถือ iOS/Android ที่บล็อก API */
+    .mobile-fullscreen {
+      position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100dvh !important;
+      z-index: 1000 !important; border-radius: 0 !important; background: #000 !important; border: none !important;
     }
-    input[type="range"]::-webkit-slider-runnable-track {
-      height: 4px;
-      border-radius: 2px;
-      background: #27272a;
-    }
-    input[type="range"]::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      appearance: none;
-      height: 12px;
-      width: 12px;
-      border-radius: 50%;
-      background: #10b981;
-      margin-top: -4px;
-      transition: transform 0.15s ease;
-    }
-    input[type="range"]:hover::-webkit-slider-thumb {
-      transform: scale(1.25);
-      background: #34d399;
-    }
-    .sortable-ghost { opacity: 0.3; background: #10b98120 !important; }
+    .mobile-fullscreen-btn { position: absolute; bottom: 20px; right: 20px; z-index: 1010; background: rgba(0,0,0,0.5); padding: 8px; border-radius: 50%; }
   </style>
 </head>
-<body class="bg-zinc-950 text-zinc-100 h-[100dvh] flex flex-col overflow-hidden select-none">
+<body class="bg-zinc-950 text-zinc-100 h-[100dvh] flex flex-col overflow-hidden select-none transition-colors duration-500">
 
   <!-- Password Gate -->
   <div id="login-modal" class="fixed inset-0 z-50 bg-zinc-950 flex items-center justify-center p-4">
     <div class="w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-2xl space-y-5">
       <div class="flex flex-col items-center text-center space-y-2">
-        <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+        <div class="w-12 h-12 rounded-2xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center text-brand-400">
           <i data-lucide="lock" class="w-6 h-6"></i>
         </div>
         <h1 class="text-lg font-semibold text-zinc-100">MinimalTube Private</h1>
@@ -66,50 +64,62 @@
       <div class="space-y-3">
         <input id="password-input" type="password" placeholder="รหัสผ่าน..." 
           onkeydown="if(event.key==='Enter') verifyPassword()"
-          class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-center tracking-widest text-zinc-100 focus:outline-none focus:border-emerald-500 transition">
+          class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-center tracking-widest text-zinc-100 focus:outline-none focus:border-brand-500 transition">
         <p id="login-error" class="text-xs text-red-400 text-center hidden">รหัสผ่านไม่ถูกต้อง</p>
-        <button onclick="verifyPassword()" id="btn-login" class="w-full py-2.5 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-semibold text-sm rounded-xl transition">
+        <button onclick="verifyPassword()" id="btn-login" class="w-full py-2.5 bg-brand-500 hover:bg-brand-400 text-zinc-950 font-semibold text-sm rounded-xl transition">
           เข้าสู่ระบบ
         </button>
       </div>
     </div>
   </div>
 
-  <!-- Top Header -->
-  <header class="px-3 py-2.5 md:px-5 md:py-3.5 border-b border-zinc-800/80 flex items-center justify-between gap-2 bg-zinc-950/90 backdrop-blur shrink-0 z-20">
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="fixed inset-0 z-50 bg-zinc-950/80 backdrop-blur-sm hidden items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+    <div class="w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-2xl space-y-6 transform scale-95 transition-transform duration-300" id="settings-box">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold text-zinc-100 flex items-center gap-2"><i data-lucide="settings" class="w-5 h-5 text-brand-400"></i> ตั้งค่าระบบ</h2>
+        <button onclick="closeSettings()" class="text-zinc-500 hover:text-zinc-300"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <div class="space-y-3">
+        <label class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">สีธีมหลัก (Theme Color)</label>
+        <div class="flex gap-4 justify-between px-1">
+          <button onclick="setTheme('emerald')" class="w-8 h-8 rounded-full bg-[#10b981] hover:scale-110 ring-2 ring-offset-2 ring-offset-zinc-900 ring-transparent focus:ring-white transition"></button>
+          <button onclick="setTheme('blue')" class="w-8 h-8 rounded-full bg-[#3b82f6] hover:scale-110 ring-2 ring-offset-2 ring-offset-zinc-900 ring-transparent focus:ring-white transition"></button>
+          <button onclick="setTheme('rose')" class="w-8 h-8 rounded-full bg-[#f43f5e] hover:scale-110 ring-2 ring-offset-2 ring-offset-zinc-900 ring-transparent focus:ring-white transition"></button>
+          <button onclick="setTheme('violet')" class="w-8 h-8 rounded-full bg-[#8b5cf6] hover:scale-110 ring-2 ring-offset-2 ring-offset-zinc-900 ring-transparent focus:ring-white transition"></button>
+          <button onclick="setTheme('amber')" class="w-8 h-8 rounded-full bg-[#f59e0b] hover:scale-110 ring-2 ring-offset-2 ring-offset-zinc-900 ring-transparent focus:ring-white transition"></button>
+        </div>
+      </div>
+      <div class="flex items-center justify-between pt-4 border-t border-zinc-800/80">
+        <div>
+          <div class="text-sm font-medium text-zinc-200">โหมดแสงเรืองรอง</div>
+          <div class="text-[10px] text-zinc-500 mt-0.5">แผ่แสงรอบกล่องวิดีโอขณะเล่น</div>
+        </div>
+        <button id="btn-glow" onclick="toggleGlow()" class="w-11 h-6 rounded-full bg-brand-500 relative transition-colors duration-300 shrink-0 cursor-pointer">
+          <div id="glow-knob" class="w-4 h-4 rounded-full bg-white absolute left-1 top-1 transition-transform duration-300 translate-x-5"></div>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header class="px-3 py-2.5 md:px-5 md:py-3.5 border-b border-zinc-800/80 flex items-center justify-between gap-2 bg-zinc-950/90 backdrop-blur shrink-0 z-20 transition-colors">
     <div class="flex items-center gap-2 shrink-0">
-      <div class="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
+      <div class="w-2.5 h-2.5 rounded-full bg-brand-500 transition-colors duration-500"></div>
       <span class="font-semibold tracking-tight text-xs md:text-sm uppercase text-zinc-200 hidden sm:inline">MinimalTube</span>
     </div>
-
     <div class="flex items-center gap-1.5 md:gap-2 flex-1 max-w-xl">
       <div class="relative flex-1 flex items-center">
         <i data-lucide="search" class="w-4 h-4 absolute left-3 text-zinc-500 pointer-events-none"></i>
-        <input id="search-input" type="text" placeholder="ค้นหาเพลง หรือกดไมค์พูด..." 
-          onkeydown="if(event.key==='Enter') searchYouTube()"
-          class="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-9 pr-9 py-1.5 md:py-2 text-xs md:text-sm text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 transition">
-        <button id="btn-mic" onclick="startVoiceSearch()" title="ค้นหาด้วยเสียงพูด" 
-          class="absolute right-1.5 p-1 rounded-lg text-zinc-400 hover:text-emerald-400 hover:bg-zinc-800 transition">
-          <i data-lucide="mic" class="w-4 h-4"></i>
-        </button>
+        <input id="search-input" type="text" placeholder="ค้นหาเพลง..." onkeydown="if(event.key==='Enter') searchYouTube()"
+          class="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-9 pr-9 py-1.5 md:py-2 text-xs md:text-sm text-zinc-200 focus:outline-none focus:border-zinc-600 transition">
+        <button id="btn-mic" onclick="startVoiceSearch()" class="absolute right-1.5 p-1 rounded-lg text-zinc-400 hover:text-brand-400 hover:bg-zinc-800"><i data-lucide="mic" class="w-4 h-4"></i></button>
       </div>
-      <button onclick="searchYouTube()" class="px-3 py-1.5 md:px-4 md:py-2 bg-zinc-100 text-zinc-900 font-medium text-xs md:text-sm rounded-xl hover:bg-white transition shrink-0">
-        ค้นหา
-      </button>
+      <button onclick="searchYouTube()" class="px-3 py-1.5 md:px-4 md:py-2 bg-zinc-100 text-zinc-900 font-medium text-xs md:text-sm rounded-xl hover:bg-white shrink-0">ค้นหา</button>
     </div>
-
-    <div class="flex items-center gap-1.5 shrink-0">
-      <button onclick="forceSkipAd()" title="ตัดโฆษณาฉุกเฉิน" class="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 text-[11px] font-medium transition">
-        <i data-lucide="zap" class="w-3.5 h-3.5"></i>
-        <span class="hidden md:inline">ตัดโฆษณา</span>
-      </button>
-      <div class="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px]">
-        <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
-        <span id="adblock-status">Zero-Ad พร้อม</span>
-      </div>
-      <button onclick="logout()" title="ล็อกหน้าจอ" class="p-1.5 hover:bg-zinc-800 rounded-xl text-zinc-400 hover:text-red-400 transition">
-        <i data-lucide="log-out" class="w-4 h-4"></i>
-      </button>
+    <div class="flex items-center gap-1 shrink-0">
+      <button onclick="openSettings()" class="p-1.5 hover:bg-zinc-800 rounded-xl text-zinc-400 hover:text-brand-400"><i data-lucide="settings" class="w-4 h-4"></i></button>
+      <button onclick="logout()" class="p-1.5 hover:bg-zinc-800 rounded-xl text-zinc-400 hover:text-red-400"><i data-lucide="log-out" class="w-4 h-4"></i></button>
     </div>
   </header>
 
@@ -119,30 +129,37 @@
     <aside id="view-playlists" class="hidden md:flex w-full md:w-60 bg-zinc-900/40 md:border-r border-zinc-800/80 flex-col z-10">
       <div class="p-4 flex items-center justify-between border-b border-zinc-800/80">
         <span class="text-xs font-semibold uppercase tracking-wider text-zinc-400">Playlist</span>
-        <button onclick="createPlaylist()" class="flex items-center gap-1 px-2.5 py-1 bg-emerald-500/10 text-emerald-400 rounded-lg text-xs transition">
-          <i data-lucide="plus" class="w-3.5 h-3.5"></i> สร้างใหม่
-        </button>
+        <button onclick="createPlaylist()" class="flex items-center gap-1 px-2.5 py-1 bg-brand-500/10 text-brand-400 rounded-lg text-xs hover:bg-brand-500/20"><i data-lucide="plus" class="w-3.5 h-3.5"></i> สร้าง</button>
+      </div>
+      <!-- ปุ่มเล่นทั้งหมด (All Playlists) -->
+      <div id="all-playlist-btn" onclick="selectPlaylist('ALL')" class="group flex items-center gap-2.5 px-6 py-3 border-b border-zinc-800/80 cursor-pointer text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/30 transition">
+        <i data-lucide="layers" class="w-4 h-4 text-brand-400"></i>
+        <span class="text-sm font-medium">เล่นทั้งหมด (All)</span>
       </div>
       <div id="playlist-list" class="flex-1 overflow-y-auto p-3 space-y-1"></div>
     </aside>
 
     <main id="view-main" class="flex-1 flex flex-col overflow-y-auto p-3 md:p-6 space-y-4 md:space-y-6">
-      <div id="player-wrapper" class="w-full max-w-4xl mx-auto space-y-2">
-        <div id="player-container" class="relative w-full aspect-video bg-black rounded-xl md:rounded-2xl overflow-hidden border border-zinc-800/80 shadow-2xl">
+      <div id="player-wrapper" class="w-full max-w-4xl mx-auto space-y-3">
+        <!-- Player Container -->
+        <div id="player-container" class="relative w-full aspect-video bg-black rounded-xl md:rounded-2xl overflow-hidden border border-zinc-800/80 transition-shadow duration-700 group">
           <video id="native-player" class="w-full h-full hidden object-contain bg-black" playsinline></video>
           <iframe id="invidious-player" class="w-full h-full hidden border-0" allow="autoplay; fullscreen"></iframe>
-          <div id="yt-player-wrap" class="w-full h-full">
-            <div id="yt-player" class="w-full h-full pointer-events-none"></div>
-          </div>
-          <!-- แผ่นใสรับคลิก -->
+          <div id="yt-player-wrap" class="w-full h-full"><div id="yt-player" class="w-full h-full pointer-events-none"></div></div>
           <div onclick="togglePlay()" class="absolute inset-0 cursor-pointer"></div>
+          
+          <!-- ปุ่มปิด Pseudo-Fullscreen บนมือถือ -->
+          <button id="exit-fs-btn" onclick="toggleFullscreen()" class="mobile-fullscreen-btn hidden text-white hover:text-brand-400"><i data-lucide="minimize" class="w-6 h-6"></i></button>
         </div>
 
         <div class="flex items-center justify-between px-1 text-[11px] text-zinc-400">
-          <span id="mobile-engine-status" class="truncate">โหมดป้องกันโฆษณา</span>
+          <div class="flex items-center gap-1.5">
+            <div class="w-1.5 h-1.5 rounded-full bg-brand-500/80 animate-pulse"></div>
+            <span id="mobile-engine-status" class="truncate text-brand-400/80">ระบบพร้อมใช้งาน</span>
+          </div>
           <div class="flex items-center gap-2 shrink-0">
-            <button onclick="switchCleanEngine()" class="text-emerald-400 hover:underline">สลับโหนด</button>
-            <span>•</span>
+            <button onclick="switchCleanEngine()" class="hover:text-zinc-200">สลับโหนด</button>
+            <span class="sm:hidden">•</span>
             <button onclick="forceSkipAd()" class="text-amber-400 hover:underline">⚡ ข้ามโฆษณา</button>
           </div>
         </div>
@@ -151,7 +168,7 @@
       <div id="search-section" class="hidden w-full max-w-4xl mx-auto space-y-3 pb-4">
         <div class="flex items-center justify-between">
           <h3 id="search-count-title" class="text-xs font-semibold text-zinc-400">ผลการค้นหา</h3>
-          <button onclick="closeSearchSection()" class="text-xs text-zinc-500">ซ่อน</button>
+          <button onclick="closeSearchSection()" class="text-xs text-zinc-500 hover:text-zinc-300">ซ่อน</button>
         </div>
         <div id="search-results" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 md:gap-3"></div>
       </div>
@@ -161,7 +178,7 @@
       <div class="p-4 border-b border-zinc-800/80 flex items-center justify-between">
         <div class="min-w-0">
           <h2 id="current-playlist-title" class="font-medium text-sm text-zinc-200 truncate">เลือก Playlist</h2>
-          <p id="current-playlist-count" class="text-[11px] text-zinc-500">ลากที่ไอคอน ⋮⋮ เพื่อจัดลำดับเพลง</p>
+          <p id="current-playlist-count" class="text-[11px] text-zinc-500">คิวเพลงปัจจุบัน</p>
         </div>
       </div>
       <div id="queue-list" class="flex-1 overflow-y-auto p-3 space-y-1.5"></div>
@@ -170,19 +187,18 @@
 
   <!-- Bottom Player Control Bar -->
   <footer class="bg-zinc-900/95 border-t border-zinc-800 px-3 py-2 md:px-6 md:py-3 flex flex-col gap-2 backdrop-blur shrink-0 z-20">
-    
     <div class="w-full max-w-3xl mx-auto flex items-center gap-2.5">
       <span id="current-time" class="text-[10px] md:text-[11px] font-mono text-zinc-400 w-8 md:w-10 text-right">0:00</span>
-      <input id="progress-bar" type="range" min="0" max="100" value="0" step="0.1"
-        oninput="onSeekInput(this.value)" onchange="onSeekChange(this.value)" class="flex-1">
+      <input id="progress-bar" type="range" min="0" max="100" value="0" step="0.1" oninput="onSeekInput(this.value)" onchange="onSeekChange(this.value)" class="flex-1">
       <span id="total-duration" class="text-[10px] md:text-[11px] font-mono text-zinc-400 w-8 md:w-10">0:00</span>
     </div>
 
     <div class="flex items-center justify-between gap-2">
       <div class="w-1/3 md:w-1/4 flex items-center gap-2.5 overflow-hidden">
-        <div class="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-zinc-800 hidden sm:flex items-center justify-center shrink-0">
-          <img id="now-playing-thumb" class="w-full h-full object-cover rounded-xl hidden">
-          <i id="now-playing-icon" data-lucide="music" class="w-4 h-4 text-zinc-400"></i>
+        <div class="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-zinc-800 hidden sm:flex items-center justify-center shrink-0 border border-zinc-700/50 relative overflow-hidden">
+          <div class="absolute inset-0 bg-brand-500/10"></div>
+          <img id="now-playing-thumb" class="w-full h-full object-cover rounded-xl hidden relative z-10">
+          <i id="now-playing-icon" data-lucide="music" class="w-4 h-4 text-brand-400 relative z-10"></i>
         </div>
         <div class="truncate">
           <div id="now-playing-title" class="text-xs md:text-sm font-medium text-zinc-200 truncate">ยังไม่ได้เลือกวิดีโอ</div>
@@ -191,628 +207,366 @@
       </div>
 
       <div class="flex items-center gap-3 md:gap-5 shrink-0">
-        <button id="btn-shuffle" onclick="toggleShuffle()" title="สุ่มเพลง" class="p-1.5 rounded-lg text-zinc-400 hover:text-white transition">
-          <i data-lucide="shuffle" class="w-4 h-4"></i>
-        </button>
-        <button onclick="prevVideo()" title="ก่อนหน้า" class="p-1.5 rounded-lg text-zinc-300 hover:text-white transition">
-          <i data-lucide="skip-back" class="w-5 h-5"></i>
-        </button>
-        <button onclick="togglePlay()" id="btn-play" title="เล่น/หยุด" class="w-9 h-9 md:w-10 md:h-10 rounded-full bg-white text-zinc-950 flex items-center justify-center hover:scale-105 transition shadow">
-          <i data-lucide="play" class="w-4 h-4 md:w-5 md:h-5 fill-current"></i>
-        </button>
-        <button onclick="nextVideo()" title="ถัดไป" class="p-1.5 rounded-lg text-zinc-300 hover:text-white transition">
-          <i data-lucide="skip-forward" class="w-5 h-5"></i>
-        </button>
-        <button id="btn-repeat" onclick="toggleRepeat()" title="เล่นซ้ำ" class="p-1.5 rounded-lg text-zinc-400 hover:text-white transition">
-          <i data-lucide="repeat" class="w-4 h-4"></i>
-        </button>
+        <button id="btn-shuffle" onclick="toggleShuffle()" title="สุ่มเพลง" class="p-1.5 rounded-lg text-zinc-400 hover:text-white transition"><i data-lucide="shuffle" class="w-4 h-4"></i></button>
+        <button onclick="prevVideo()" title="ก่อนหน้า" class="p-1.5 rounded-lg text-zinc-300 hover:text-brand-400 transition"><i data-lucide="skip-back" class="w-5 h-5"></i></button>
+        <button onclick="togglePlay()" id="btn-play" title="เล่น/หยุด" class="w-9 h-9 md:w-10 md:h-10 rounded-full bg-white text-zinc-950 flex items-center justify-center hover:scale-105 hover:bg-brand-400 transition"><i data-lucide="play" class="w-4 h-4 md:w-5 md:h-5 fill-current"></i></button>
+        <button onclick="nextVideo()" title="ถัดไป" class="p-1.5 rounded-lg text-zinc-300 hover:text-brand-400 transition"><i data-lucide="skip-forward" class="w-5 h-5"></i></button>
+        <button id="btn-repeat" onclick="toggleRepeat()" title="เล่นซ้ำ" class="p-1.5 rounded-lg text-zinc-400 hover:text-white transition"><i data-lucide="repeat" class="w-4 h-4"></i></button>
       </div>
 
       <div class="w-1/3 md:w-1/4 flex justify-end items-center gap-2 md:gap-3">
-        <div class="flex items-center bg-zinc-800/80 rounded-lg px-1.5 py-1 border border-zinc-700/50">
-          <select id="speed-select" onchange="changeSpeed(this.value)" class="bg-transparent text-[11px] md:text-xs font-medium text-zinc-200 focus:outline-none cursor-pointer">
-            <option value="1" selected class="bg-zinc-900">1x</option>
-            <option value="1.25" class="bg-zinc-900">1.25x</option>
-            <option value="1.5" class="bg-zinc-900">1.5x</option>
-            <option value="2" class="bg-zinc-900">2x</option>
-          </select>
-        </div>
         <div class="flex items-center gap-1.5">
-          <button onclick="toggleMute()" id="btn-mute" class="p-1 text-zinc-400 hover:text-white">
-            <i data-lucide="volume-2" class="w-4 h-4"></i>
-          </button>
+          <button onclick="toggleMute()" id="btn-mute" class="p-1 text-zinc-400 hover:text-white"><i data-lucide="volume-2" class="w-4 h-4"></i></button>
           <input id="volume-bar" type="range" min="0" max="100" value="100" oninput="changeVolume(this.value)" class="hidden sm:block w-16 md:w-20">
         </div>
-        <button onclick="toggleFullscreen()" class="p-1.5 md:p-2 rounded-xl bg-zinc-800/80 hover:text-white">
-          <i data-lucide="maximize" class="w-4 h-4"></i>
-        </button>
+        <button onclick="toggleFullscreen()" class="p-1.5 md:p-2 rounded-xl bg-zinc-800/80 hover:text-brand-400 transition-colors"><i data-lucide="maximize" class="w-4 h-4"></i></button>
       </div>
     </div>
   </footer>
 
-  <nav class="md:hidden h-14 bg-zinc-950 border-t border-zinc-800/90 grid grid-cols-3 shrink-0 z-30">
-    <button onclick="switchMobileTab('main')" id="tab-main" class="flex flex-col items-center justify-center gap-1 text-emerald-400">
-      <i data-lucide="tv" class="w-4 h-4"></i><span class="text-[10px]">ตัวเล่น</span>
-    </button>
-    <button onclick="switchMobileTab('queue')" id="tab-queue" class="flex flex-col items-center justify-center gap-1 text-zinc-400">
-      <i data-lucide="list-ordered" class="w-4 h-4"></i><span class="text-[10px]">คิวเพลง</span>
-    </button>
-    <button onclick="switchMobileTab('playlists')" id="tab-playlists" class="flex flex-col items-center justify-center gap-1 text-zinc-400">
-      <i data-lucide="folder-heart" class="w-4 h-4"></i><span class="text-[10px]">Playlist</span>
-    </button>
+  <nav class="md:hidden h-14 bg-zinc-950 border-t border-zinc-800/90 grid grid-cols-3 shrink-0 z-30 transition-colors">
+    <button onclick="switchMobileTab('main')" id="tab-main" class="flex flex-col items-center justify-center gap-1 text-brand-400"><i data-lucide="tv" class="w-4 h-4"></i><span class="text-[10px]">ตัวเล่น</span></button>
+    <button onclick="switchMobileTab('queue')" id="tab-queue" class="flex flex-col items-center justify-center gap-1 text-zinc-400"><i data-lucide="list-ordered" class="w-4 h-4"></i><span class="text-[10px]">คิวเพลง</span></button>
+    <button onclick="switchMobileTab('playlists')" id="tab-playlists" class="flex flex-col items-center justify-center gap-1 text-zinc-400"><i data-lucide="folder-heart" class="w-4 h-4"></i><span class="text-[10px]">Playlist</span></button>
   </nav>
 
-  <!-- Service Worker สำหรับ PWA -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js').catch(err => console.log('SW registration failed:', err));
-    }
-  </script>
-
-  <!-- YouTube API -->
   <script src="https://www.youtube.com/iframe_api"></script>
   <script>
     // ==========================================
-    // ตั้งค่า URL ของ RENDER ที่นี่
+    // ใส่ URL ของ RENDER ที่นี่
     // ==========================================
     const RENDER_API_URL = 'https://mytube-backend-0ht8.onrender.com';
 
-    const CLIENT_PIPED_NODES = [
-      'https://pipedapi.kavin.rocks',
-      'https://pipedapi.tokhmi.xyz',
-      'https://api.piped.projectsegfau.lt'
-    ];
-    const CLEAN_EMBED_NODES = [
-      'https://inv.nadeko.net',
-      'https://invidious.nerdvpn.de',
-      'https://inv.tux.pizza'
-    ];
+    let currentTheme = localStorage.getItem('mytube_theme') || 'emerald';
+    let isGlowEnabled = localStorage.getItem('mytube_glow') !== 'false';
+    document.documentElement.setAttribute('data-theme', currentTheme);
+
+    const CLIENT_PIPED_NODES = ['https://pipedapi.kavin.rocks', 'https://pipedapi.tokhmi.xyz', 'https://api.piped.projectsegfau.lt'];
+    const CLEAN_EMBED_NODES = ['https://inv.nadeko.net', 'https://invidious.nerdvpn.de', 'https://inv.tux.pizza'];
     let embedNodeIdx = 0;
 
     let appPassword = localStorage.getItem('mytube_pass') || '';
     let playlists = [];
     let activePlaylistId = null;
     let currentIndex = -1;
-    let isShuffle = false;
-    let isRepeat = false;
-    let isPlaying = false;
-    let isSeeking = false;
-    let currentSpeed = 1;
-    let currentVolume = 100;
-    let isMuted = false;
-    
-    let activeEngine = 'native';
-    let expectedDuration = 0;
-    let progressTimer = null;
-    let sortableQueue = null;
-    let player;
-
-    // ตัวแปรสำหรับแก้ปัญหาบั๊กเล่นซ้ำของ AdBlock
-    let isAdSkipping = false;
-    let lastPlayerState = -1;
+    let isShuffle = false, isRepeat = false, isPlaying = false, isSeeking = false;
+    let currentSpeed = 1, currentVolume = 100, isMuted = false;
+    let activeEngine = 'native', expectedDuration = 0, sortableQueue = null, player;
+    let isAdSkipping = false, lastPlayerState = -1;
 
     const nativeVideo = document.getElementById('native-player');
     const invidiousIframe = document.getElementById('invidious-player');
 
     lucide.createIcons();
 
+    // 0. Settings Logic
+    function openSettings() { const m = document.getElementById('settings-modal'); m.classList.remove('hidden'); m.classList.add('flex'); void m.offsetWidth; m.classList.remove('opacity-0'); document.getElementById('settings-box').classList.remove('scale-95'); updateGlowUI(); }
+    function closeSettings() { const m = document.getElementById('settings-modal'); m.classList.add('opacity-0'); document.getElementById('settings-box').classList.add('scale-95'); setTimeout(() => { m.classList.add('hidden'); m.classList.remove('flex'); }, 300); }
+    function setTheme(theme) { currentTheme = theme; document.documentElement.setAttribute('data-theme', theme); localStorage.setItem('mytube_theme', theme); switchMobileTab(window.innerWidth < 768 ? 'main' : ''); updateGlowEffect(); }
+    function toggleGlow() { isGlowEnabled = !isGlowEnabled; localStorage.setItem('mytube_glow', isGlowEnabled); updateGlowUI(); updateGlowEffect(); }
+    function updateGlowUI() { const btn = document.getElementById('btn-glow'), knob = document.getElementById('glow-knob'); if (isGlowEnabled) { btn.classList.replace('bg-zinc-700', 'bg-brand-500'); knob.classList.add('translate-x-5'); } else { btn.classList.replace('bg-brand-500', 'bg-zinc-700'); knob.classList.remove('translate-x-5'); } }
+    function updateGlowEffect() { const box = document.getElementById('player-container'); if (isGlowEnabled && isPlaying && activeEngine !== 'invidious') box.classList.add('ambient-glow'); else box.classList.remove('ambient-glow'); }
+
     // 1. Mobile Tabs
     function switchMobileTab(tab) {
-      if (window.innerWidth >= 768) return;
-      ['main', 'queue', 'playlists'].forEach(t => {
-        document.getElementById(`view-${t}`).classList.add('hidden');
-        document.getElementById(`view-${t}`).classList.remove('flex');
-        document.getElementById(`tab-${t}`).className = 'flex flex-col items-center justify-center gap-1 text-zinc-400';
-      });
-      const el = document.getElementById(`view-${tab}`);
-      el.classList.remove('hidden');
-      if(tab !== 'main') el.classList.add('flex');
-      document.getElementById(`tab-${tab}`).className = 'flex flex-col items-center justify-center gap-1 text-emerald-400';
+      if (window.innerWidth >= 768 || !tab) return;
+      ['main', 'queue', 'playlists'].forEach(t => { document.getElementById(`view-${t}`).classList.add('hidden'); document.getElementById(`view-${t}`).classList.remove('flex'); document.getElementById(`tab-${t}`).className = 'flex flex-col items-center justify-center gap-1 text-zinc-400'; });
+      const el = document.getElementById(`view-${tab}`); el.classList.remove('hidden'); if(tab !== 'main') el.classList.add('flex');
+      document.getElementById(`tab-${tab}`).className = 'flex flex-col items-center justify-center gap-1 text-brand-400';
     }
-    window.addEventListener('resize', () => {
-      if (window.innerWidth >= 768) {
-        ['main', 'queue', 'playlists'].forEach(t => document.getElementById(`view-${t}`).classList.remove('hidden'));
-      } else switchMobileTab('main');
-    });
+    window.addEventListener('resize', () => { if (window.innerWidth >= 768) { ['main', 'queue', 'playlists'].forEach(t => document.getElementById(`view-${t}`).classList.remove('hidden')); } else switchMobileTab('main'); });
 
-    // 2. Auth
+    // 2. Auth & Auto-Resume LocalStorage
     async function verifyPassword(savedPass) {
-      const pass = savedPass || document.getElementById('password-input').value.trim();
-      if (!pass) return;
+      const pass = savedPass || document.getElementById('password-input').value.trim(); if (!pass) return;
       document.getElementById('btn-login').innerText = 'กำลังตรวจสอบ...';
       try {
-        const res = await fetch(`${RENDER_API_URL}/api/auth`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password: pass })
-        });
+        const res = await fetch(`${RENDER_API_URL}/api/auth`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pass }) });
         if (res.ok) {
-          appPassword = pass;
-          localStorage.setItem('mytube_pass', pass);
-          document.getElementById('login-modal').classList.add('hidden');
-          loadPlaylists();
-        } else {
-          localStorage.removeItem('mytube_pass');
-          document.getElementById('login-error').classList.remove('hidden');
-        }
-      } catch (e) {
-        document.getElementById('login-error').classList.remove('hidden');
-      }
+          appPassword = pass; localStorage.setItem('mytube_pass', pass);
+          document.getElementById('login-modal').classList.add('hidden'); loadPlaylists();
+        } else { localStorage.removeItem('mytube_pass'); document.getElementById('login-error').classList.remove('hidden'); }
+      } catch (e) { document.getElementById('login-error').classList.remove('hidden'); }
       document.getElementById('btn-login').innerText = 'เข้าสู่ระบบ';
     }
-    function logout() {
-      localStorage.removeItem('mytube_pass');
-      appPassword = '';
-      if (player && player.stopVideo) player.stopVideo();
-      nativeVideo.pause();
-      document.getElementById('login-modal').classList.remove('hidden');
+    function logout() { localStorage.removeItem('mytube_pass'); appPassword = ''; if (player && player.stopVideo) player.stopVideo(); nativeVideo.pause(); document.getElementById('login-modal').classList.remove('hidden'); }
+    function authHeaders(isJSON = false) { const h = { 'x-app-password': appPassword }; if (isJSON) h['Content-Type'] = 'application/json'; return h; }
+
+    function savePlaybackState() {
+      if (currentIndex === -1 || !activePlaylistId) return;
+      const t = activeEngine === 'native' ? nativeVideo.currentTime : (player && player.getCurrentTime ? player.getCurrentTime() : 0);
+      if (t > 2) localStorage.setItem('mytube_resume', JSON.stringify({ pl: activePlaylistId, idx: currentIndex, time: t }));
     }
-    function authHeaders(isJSON = false) {
-      const h = { 'x-app-password': appPassword };
-      if (isJSON) h['Content-Type'] = 'application/json';
-      return h;
-    }
+    // บันทึกสถานะทุก 3 วินาที
+    setInterval(savePlaybackState, 3000);
 
-    // 3. Media Session API (แสดงบนหน้าจอล็อกมือถือ)
-    function updateMediaSession(video) {
-      if ('mediaSession' in navigator && video) {
-        navigator.mediaSession.metadata = new MediaMetadata({
-          title: video.title,
-          artist: video.author,
-          artwork: [
-            { src: video.thumbnail, sizes: '320x180', type: 'image/jpeg' },
-            { src: video.thumbnail.replace('hqdefault', 'maxresdefault'), sizes: '1280x720', type: 'image/jpeg' }
-          ]
-        });
-
-        // อัปเดตไอคอนที่หน้าเว็บด้วย
-        const thumbEl = document.getElementById('now-playing-thumb');
-        const iconEl = document.getElementById('now-playing-icon');
-        if (thumbEl && iconEl) {
-          thumbEl.src = video.thumbnail;
-          thumbEl.classList.remove('hidden');
-          iconEl.classList.add('hidden');
-        }
-
-        navigator.mediaSession.setActionHandler('play', togglePlay);
-        navigator.mediaSession.setActionHandler('pause', togglePlay);
-        navigator.mediaSession.setActionHandler('previoustrack', prevVideo);
-        navigator.mediaSession.setActionHandler('nexttrack', nextVideo);
+    // 3. Helper: ดึง Playlist ปัจจุบัน (รองรับโหมด "เล่นทั้งหมด")
+    function getActivePlaylist() {
+      if (!activePlaylistId) return null;
+      if (activePlaylistId === 'ALL') {
+        const allVids = playlists.flatMap(p => p.videos);
+        return { id: 'ALL', name: 'เล่นทั้งหมด (All Playlists)', videos: allVids };
       }
+      return playlists.find(p => p.id === activePlaylistId);
     }
 
-    // 4. เครื่องเล่น (Native & YouTube API)
-    nativeVideo.addEventListener('play', () => {
-      if (activeEngine !== 'native') return;
-      isPlaying = true;
-      nativeVideo.playbackRate = currentSpeed;
-      updatePlayButton();
-      startProgressTimer();
-      setEngineStatus('Direct MP4 (เล่นพื้นหลังได้)');
+    // 4. เครื่องเล่น (แก้ระบบเวลา Native ให้รันตอนล็อกจอ)
+    nativeVideo.addEventListener('timeupdate', () => {
+      if (activeEngine !== 'native' || isSeeking) return;
+      const c = nativeVideo.currentTime || 0; const d = nativeVideo.duration || 0;
+      if (d > 0 && isPlaying) {
+        document.getElementById('progress-bar').value = (c / d) * 100;
+        document.getElementById('current-time').innerText = formatTime(c);
+        document.getElementById('total-duration').innerText = formatTime(d);
+      }
     });
-    nativeVideo.addEventListener('pause', () => {
-      if (activeEngine !== 'native') return;
-      isPlaying = false;
-      updatePlayButton();
-    });
-    nativeVideo.addEventListener('ended', () => {
-      if (activeEngine !== 'native') return;
-      handleVideoEnded();
-    });
+    nativeVideo.addEventListener('play', () => { if (activeEngine !== 'native') return; isPlaying = true; nativeVideo.playbackRate = currentSpeed; updatePlayButton(); setEngineStatus('Direct MP4 (เล่นตอนล็อกจอได้)'); updateGlowEffect(); });
+    nativeVideo.addEventListener('pause', () => { if (activeEngine !== 'native') return; isPlaying = false; updatePlayButton(); updateGlowEffect(); savePlaybackState(); });
+    nativeVideo.addEventListener('ended', () => { if (activeEngine !== 'native') return; handleVideoEnded(); });
+
+    // YouTube Progress Interval
+    setInterval(() => {
+      if (activeEngine !== 'yt' || !isPlaying || isSeeking || !player) return;
+      const c = player.getCurrentTime() || 0; const d = player.getDuration() || 0;
+      if (d > 0) {
+        document.getElementById('progress-bar').value = (c / d) * 100;
+        document.getElementById('current-time').innerText = formatTime(c);
+        document.getElementById('total-duration').innerText = formatTime(d);
+      }
+    }, 500);
 
     function onYouTubeIframeAPIReady() {
       player = new YT.Player('yt-player', {
-        height: '100%',
-        width: '100%',
-        host: 'https://www.youtube-nocookie.com',
-        playerVars: {
-          autoplay: 1, controls: 0, rel: 0, modestbranding: 1, iv_load_policy: 3, disablekb: 1, playsinline: 1, origin: window.location.origin
-        },
+        height: '100%', width: '100%', host: 'https://www.youtube-nocookie.com',
+        playerVars: { autoplay: 1, controls: 0, rel: 0, modestbranding: 1, iv_load_policy: 3, disablekb: 1, playsinline: 1, origin: window.location.origin },
         events: {
-          onReady: () => {
-            player.setVolume(100);
-            if (appPassword) verifyPassword(appPassword);
-          },
-          onStateChange: onPlayerStateChange,
-          onError: () => nextVideo()
+          onReady: () => { player.setVolume(100); if (appPassword) verifyPassword(appPassword); },
+          onStateChange: onPlayerStateChange, onError: () => nextVideo()
         }
       });
     }
 
     function onPlayerStateChange(event) {
-      if (activeEngine !== 'yt') return;
-      lastPlayerState = event.data;
-
-      if (event.data === YT.PlayerState.ENDED) {
-        stopProgressTimer();
-        handleVideoEnded();
-      } else if (event.data === YT.PlayerState.PLAYING) {
-        isPlaying = true;
-        player.setPlaybackRate(currentSpeed);
-        updatePlayButton();
-        startProgressTimer();
-        
-        // Anti-Collision AdBlock: ตรวจสอบและหน่วงเวลา
+      if (activeEngine !== 'yt') return; lastPlayerState = event.data;
+      if (event.data === YT.PlayerState.ENDED) { handleVideoEnded(); }
+      else if (event.data === YT.PlayerState.PLAYING) {
+        isPlaying = true; player.setPlaybackRate(currentSpeed); updatePlayButton(); updateGlowEffect();
         if (!isAdSkipping) {
-          const duration = player.getDuration() || 0;
-          if (expectedDuration > 60 && duration > 0 && duration < 90) {
-            isAdSkipping = true;
-            setEngineStatus('กำลังข้ามโฆษณา...');
-            // หน่วง 1.5 วินาที เพื่อให้ AdBlock เบราว์เซอร์ทำงานก่อน ถ้าไม่สำเร็จโค้ดเราค่อยกระโดด
-            setTimeout(() => {
-              if (lastPlayerState === YT.PlayerState.PLAYING && (player.getDuration() || 0) < 90) {
-                forceSkipAd();
-              } else {
-                isAdSkipping = false;
-              }
-            }, 1500);
-          } else {
-            setEngineStatus('กำลังเล่น (โหมดซิงค์โฆษณา)');
-          }
+          const d = player.getDuration() || 0;
+          if (expectedDuration > 60 && d > 0 && d < 90) {
+            isAdSkipping = true; setEngineStatus('กำลังข้ามโฆษณา...');
+            setTimeout(() => { if (lastPlayerState === YT.PlayerState.PLAYING && (player.getDuration()||0) < 90) forceSkipAd(); else isAdSkipping = false; }, 1500);
+          } else setEngineStatus('โหมดซิงค์โฆษณา');
         }
-      } else if (event.data === YT.PlayerState.PAUSED) {
-        isPlaying = false;
-        updatePlayButton();
-      }
+      } else if (event.data === YT.PlayerState.PAUSED) { isPlaying = false; updatePlayButton(); updateGlowEffect(); savePlaybackState(); }
     }
 
     function handleVideoEnded() {
       if (isRepeat) {
-        if (activeEngine === 'native') {
-          nativeVideo.currentTime = 0;
-          nativeVideo.play();
-        } else if (activeEngine === 'yt' && player) {
-          player.seekTo(1, true);
-        } else {
-          playVideoAt(currentIndex);
-        }
-      } else {
-        nextVideo();
+        if (activeEngine === 'native') { nativeVideo.currentTime = 0; nativeVideo.play(); }
+        else if (activeEngine === 'yt' && player) player.seekTo(1, true);
+        else playVideoAt(currentIndex);
+      } else nextVideo(); // ฟังก์ชันนี้ลูปอัตโนมัติอยู่แล้ว
+    }
+    function setEngineStatus(text) { document.getElementById('mobile-engine-status').innerText = text; }
+
+    async function playVideoAt(index, seekTime = 0, autoPlay = true) {
+      const pl = getActivePlaylist(); if (!pl || !pl.videos[index]) return;
+      currentIndex = index; isAdSkipping = false; const video = pl.videos[index]; expectedDuration = video.seconds || 0;
+      
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.metadata = new MediaMetadata({ title: video.title, artist: video.author, artwork: [{ src: video.thumbnail, sizes: '320x180', type: 'image/jpeg' }] });
+        navigator.mediaSession.setActionHandler('play', togglePlay); navigator.mediaSession.setActionHandler('pause', togglePlay); navigator.mediaSession.setActionHandler('previoustrack', prevVideo); navigator.mediaSession.setActionHandler('nexttrack', nextVideo);
       }
-    }
+      const thumbEl = document.getElementById('now-playing-thumb'), iconEl = document.getElementById('now-playing-icon');
+      if(thumbEl){ thumbEl.src = video.thumbnail; thumbEl.classList.remove('hidden'); iconEl.classList.add('hidden'); }
 
-    function setEngineStatus(text) {
-      document.getElementById('now-playing-status').innerText = text;
-      document.getElementById('mobile-engine-status').innerText = text;
-      const badge = document.getElementById('adblock-status');
-      if (badge) badge.innerText = text;
-    }
-
-    // 5. ระบบดึงไฟล์
-    async function playVideoAt(index) {
-      const pl = playlists.find(p => p.id === activePlaylistId);
-      if (!pl || !pl.videos[index]) return;
-
-      currentIndex = index;
-      isAdSkipping = false; // Reset สถานะ AdBlock
-      const video = pl.videos[index];
-      expectedDuration = video.seconds || 0;
-
-      updateMediaSession(video); // แจ้ง Media Session ของมือถือ
-
-      document.getElementById('progress-bar').value = 0;
-      document.getElementById('current-time').innerText = '0:00';
+      document.getElementById('progress-bar').value = 0; document.getElementById('current-time').innerText = '0:00';
       document.getElementById('now-playing-title').innerText = video.title;
-      setEngineStatus('กำลังดึงสตรีม...');
-      renderQueue();
-      switchMobileTab('main');
-
-      if (player && player.stopVideo) player.stopVideo();
-      nativeVideo.pause();
-      invidiousIframe.src = '';
-
-      // 1. Client Fetch
+      setEngineStatus('กำลังเตรียมวิดีโอ...'); renderQueue(); switchMobileTab('main');
+      
+      if (player && player.stopVideo) player.stopVideo(); nativeVideo.pause(); invidiousIframe.src = '';
+      
       for (const node of CLIENT_PIPED_NODES) {
         try {
           const r = await fetch(`${node}/streams/${video.videoId}`, { signal: AbortSignal.timeout(2500) });
           if (r.ok) {
-            const data = await r.json();
-            const stream = (data.videoStreams || []).find(s => !s.videoOnly && s.format === 'MPEG_4');
-            if (stream && stream.url) {
-              if (await tryPlayNative(stream.url)) return;
-            }
+            const data = await r.json(); const stream = (data.videoStreams || []).find(s => !s.videoOnly && s.format === 'MPEG_4');
+            if (stream && stream.url && await tryPlayNative(stream.url, seekTime, autoPlay)) return;
           }
         } catch (e) {}
       }
-
-      // 2. Server Proxy
       try {
         const res = await fetch(`${RENDER_API_URL}/api/stream?id=${video.videoId}`, { headers: authHeaders() });
         if (res.ok) {
           const data = await res.json();
           if (data.url) {
-            if (await tryPlayNative(data.url)) return;
-            const proxyUrl = `${RENDER_API_URL}/api/proxy-stream?url=${encodeURIComponent(data.url)}&pass=${encodeURIComponent(appPassword)}`;
-            if (await tryPlayNative(proxyUrl)) return;
+            if (await tryPlayNative(data.url, seekTime, autoPlay)) return;
+            if (await tryPlayNative(`${RENDER_API_URL}/api/proxy-stream?url=${encodeURIComponent(data.url)}&pass=${encodeURIComponent(appPassword)}`, seekTime, autoPlay)) return;
           }
         }
       } catch (e) {}
-
-      fallbackToYouTubeIframe();
+      
+      fallbackToYouTubeIframe(seekTime, autoPlay);
     }
 
-    function tryPlayNative(url) {
+    function tryPlayNative(url, seekTime = 0, autoPlay = true) {
       return new Promise((resolve) => {
-        activeEngine = 'native';
-        document.getElementById('yt-player-wrap').classList.add('hidden');
-        invidiousIframe.classList.add('hidden');
-        nativeVideo.classList.remove('hidden');
-
-        let resolved = false;
-        const done = (ok) => { if (!resolved) { resolved = true; resolve(ok); } };
-
+        activeEngine = 'native'; document.getElementById('yt-player-wrap').classList.add('hidden'); invidiousIframe.classList.add('hidden'); nativeVideo.classList.remove('hidden');
+        let resolved = false; const done = (ok) => { if (!resolved) { resolved = true; resolve(ok); } };
         const timer = setTimeout(() => done(false), 4000);
-        nativeVideo.onloadeddata = () => { clearTimeout(timer); nativeVideo.play().then(() => done(true)).catch(() => done(false)); };
+        nativeVideo.onloadeddata = () => {
+          clearTimeout(timer);
+          if (seekTime > 0) nativeVideo.currentTime = seekTime;
+          if (autoPlay) { nativeVideo.play().then(() => done(true)).catch(() => done(true)); } // แคชกรณีเบราว์เซอร์บล็อก auto-play
+          else { done(true); }
+        };
         nativeVideo.onerror = () => { clearTimeout(timer); done(false); };
-        
-        nativeVideo.src = url;
-        nativeVideo.load();
+        nativeVideo.src = url; nativeVideo.load();
       });
     }
-
-    function fallbackToYouTubeIframe() {
-      const pl = playlists.find(p => p.id === activePlaylistId);
-      if (!pl || !pl.videos[currentIndex]) return;
-      activeEngine = 'yt';
-      nativeVideo.pause();
-      nativeVideo.classList.add('hidden');
-      invidiousIframe.classList.add('hidden');
-      document.getElementById('yt-player-wrap').classList.remove('hidden');
-      
+    
+    function fallbackToYouTubeIframe(seekTime = 0, autoPlay = true) {
+      const pl = getActivePlaylist(); if (!pl || !pl.videos[currentIndex]) return;
+      activeEngine = 'yt'; nativeVideo.pause(); nativeVideo.classList.add('hidden'); invidiousIframe.classList.add('hidden'); document.getElementById('yt-player-wrap').classList.remove('hidden');
       if (player && player.loadVideoById) {
-        player.loadVideoById({ videoId: pl.videos[currentIndex].videoId, startSeconds: 1, suggestedQuality: 'large' });
+        if (autoPlay) player.loadVideoById({ videoId: pl.videos[currentIndex].videoId, startSeconds: seekTime || 1 });
+        else player.cueVideoById({ videoId: pl.videos[currentIndex].videoId, startSeconds: seekTime || 1 });
       }
     }
-
     function forceSkipAd() {
-      const pl = playlists.find(p => p.id === activePlaylistId);
-      if (!pl || !pl.videos[currentIndex]) return;
-      if (activeEngine === 'yt' && player) {
-        player.loadVideoById({ videoId: pl.videos[currentIndex].videoId, startSeconds: 3 });
-        setTimeout(() => { isAdSkipping = false; }, 2000); // ปลดล็อกหลังสั่งข้าม
+      const pl = getActivePlaylist(); if (!pl || !pl.videos[currentIndex]) return;
+      if (activeEngine === 'yt' && player) { player.loadVideoById({ videoId: pl.videos[currentIndex].videoId, startSeconds: 3 }); setTimeout(() => { isAdSkipping = false; }, 2000); }
+      else switchCleanEngine();
+    }
+    function switchCleanEngine() {
+      const pl = getActivePlaylist(); if (!pl || !pl.videos[currentIndex]) return;
+      activeEngine = 'invidious'; if (player && player.stopVideo) player.stopVideo(); nativeVideo.pause(); nativeVideo.classList.add('hidden'); document.getElementById('yt-player-wrap').classList.add('hidden'); invidiousIframe.classList.remove('hidden');
+      const host = CLEAN_EMBED_NODES[embedNodeIdx % CLEAN_EMBED_NODES.length]; embedNodeIdx++;
+      invidiousIframe.src = `${host}/embed/${pl.videos[currentIndex].videoId}?autoplay=1&listen=0`; setEngineStatus(`Clean Embed`); updateGlowEffect();
+    }
+
+    // 5. การควบคุม
+    function formatTime(sec) { if (!sec || isNaN(sec)) return '0:00'; const m = Math.floor(sec / 60); const s = Math.floor(sec % 60); return `${m}:${s < 10 ? '0' : ''}${s}`; }
+    function onSeekInput(percent) { isSeeking = true; const d = activeEngine === 'native' ? (nativeVideo.duration || 0) : (player ? player.getDuration() || 0 : 0); document.getElementById('current-time').innerText = formatTime((percent / 100) * d); }
+    function onSeekChange(percent) { const d = activeEngine === 'native' ? (nativeVideo.duration || 0) : (player ? player.getDuration() || 0 : 0); const t = (percent / 100) * d; if (activeEngine === 'native') nativeVideo.currentTime = t; else if (activeEngine === 'yt' && player) player.seekTo(t, true); isSeeking = false; }
+    function togglePlay() { if (currentIndex === -1) return; if (activeEngine === 'native') { if (nativeVideo.paused) nativeVideo.play(); else nativeVideo.pause(); } else if (activeEngine === 'yt' && player) { if (isPlaying) player.pauseVideo(); else player.playVideo(); } }
+    function updatePlayButton() { const btn = document.getElementById('btn-play'); btn.innerHTML = `<i data-lucide="${isPlaying ? 'pause' : 'play'}" class="w-4 h-4 md:w-5 md:h-5 fill-current"></i>`; lucide.createIcons(); }
+    
+    // ระบบวนลูปอัตโนมัติ % length 
+    function nextVideo() { const pl = getActivePlaylist(); if (!pl || pl.videos.length === 0) return; currentIndex = isShuffle ? Math.floor(Math.random() * pl.videos.length) : (currentIndex + 1) % pl.videos.length; playVideoAt(currentIndex); }
+    function prevVideo() { const pl = getActivePlaylist(); if (!pl || pl.videos.length === 0) return; currentIndex = (currentIndex - 1 + pl.videos.length) % pl.videos.length; playVideoAt(currentIndex); }
+    
+    function changeVolume(val) { currentVolume = Number(val); isMuted = currentVolume === 0; nativeVideo.volume = currentVolume / 100; nativeVideo.muted = isMuted; if (player && player.setVolume) { player.setVolume(currentVolume); if (currentVolume > 0 && player.isMuted()) player.unMute(); } updateVolumeIcon(); }
+    function toggleMute() { isMuted = !isMuted; nativeVideo.muted = isMuted; if (player) { if (isMuted) player.mute(); else player.unMute(); } const bar = document.getElementById('volume-bar'); if (bar) bar.value = isMuted ? 0 : currentVolume; updateVolumeIcon(); }
+    function updateVolumeIcon() { const btn = document.getElementById('btn-mute'); let icon = 'volume-2'; if (isMuted || currentVolume === 0) icon = 'volume-x'; else if (currentVolume < 50) icon = 'volume-1'; btn.innerHTML = `<i data-lucide="${icon}" class="w-4 h-4"></i>`; lucide.createIcons(); }
+    function toggleShuffle() { isShuffle = !isShuffle; document.getElementById('btn-shuffle').className = isShuffle ? 'p-1.5 rounded-lg text-brand-400 bg-brand-500/15' : 'p-1.5 rounded-lg text-zinc-400 hover:text-white'; }
+    function toggleRepeat() { isRepeat = !isRepeat; document.getElementById('btn-repeat').className = isRepeat ? 'p-1.5 rounded-lg text-brand-400 bg-brand-500/15' : 'p-1.5 rounded-lg text-zinc-400 hover:text-white'; }
+    
+    // ระบบ Fullscreen รองรับมือถือ 100%
+    function toggleFullscreen() {
+      const container = document.getElementById('player-container');
+      const exitBtn = document.getElementById('exit-fs-btn');
+      if (!document.fullscreenElement && !document.body.classList.contains('mobile-fullscreen')) {
+        if (container.requestFullscreen) { container.requestFullscreen().catch(() => enableMobileFs(container, exitBtn)); }
+        else if (container.webkitRequestFullscreen) { container.webkitRequestFullscreen(); }
+        else { enableMobileFs(container, exitBtn); }
       } else {
-        switchCleanEngine();
+        if (document.exitFullscreen && document.fullscreenElement) { document.exitFullscreen(); }
+        else { document.body.classList.remove('mobile-fullscreen'); container.classList.remove('mobile-fullscreen'); exitBtn.classList.add('hidden'); }
       }
     }
-
-    function switchCleanEngine() {
-      const pl = playlists.find(p => p.id === activePlaylistId);
-      if (!pl || !pl.videos[currentIndex]) return;
-      activeEngine = 'invidious';
-      if (player && player.stopVideo) player.stopVideo();
-      nativeVideo.pause();
-      nativeVideo.classList.add('hidden');
-      document.getElementById('yt-player-wrap').classList.add('hidden');
-      invidiousIframe.classList.remove('hidden');
-
-      const host = CLEAN_EMBED_NODES[embedNodeIdx % CLEAN_EMBED_NODES.length];
-      embedNodeIdx++;
-      invidiousIframe.src = `${host}/embed/${pl.videos[currentIndex].videoId}?autoplay=1&listen=0`;
-      setEngineStatus(`Clean Embed (${new URL(host).hostname})`);
+    function enableMobileFs(container, exitBtn) {
+      document.body.classList.add('mobile-fullscreen'); container.classList.add('mobile-fullscreen'); exitBtn.classList.remove('hidden');
     }
 
-    // 6. ควบคุม
-    function formatTime(sec) {
-      if (!sec || isNaN(sec)) return '0:00';
-      const m = Math.floor(sec / 60); const s = Math.floor(sec % 60);
-      return `${m}:${s < 10 ? '0' : ''}${s}`;
-    }
-
-    function startProgressTimer() {
-      stopProgressTimer();
-      progressTimer = setInterval(() => {
-        if (!isPlaying || isSeeking) return;
-        let current = 0, duration = 0;
-        if (activeEngine === 'native') {
-          current = nativeVideo.currentTime || 0;
-          duration = nativeVideo.duration || 0;
-        } else if (activeEngine === 'yt' && player) {
-          current = player.getCurrentTime() || 0;
-          duration = player.getDuration() || 0;
-        }
-        if (duration > 0) {
-          document.getElementById('progress-bar').value = (current / duration) * 100;
-          document.getElementById('current-time').innerText = formatTime(current);
-          document.getElementById('total-duration').innerText = formatTime(duration);
-        }
-      }, 500);
-    }
-    function stopProgressTimer() { if (progressTimer) clearInterval(progressTimer); }
-    function onSeekInput(percent) {
-      isSeeking = true;
-      const duration = activeEngine === 'native' ? (nativeVideo.duration || 0) : (player ? player.getDuration() || 0 : 0);
-      document.getElementById('current-time').innerText = formatTime((percent / 100) * duration);
-    }
-    function onSeekChange(percent) {
-      const duration = activeEngine === 'native' ? (nativeVideo.duration || 0) : (player ? player.getDuration() || 0 : 0);
-      const targetTime = (percent / 100) * duration;
-      if (activeEngine === 'native') nativeVideo.currentTime = targetTime;
-      else if (activeEngine === 'yt' && player) player.seekTo(targetTime, true);
-      isSeeking = false;
-    }
-
-    function togglePlay() {
-      if (currentIndex === -1) return;
-      if (activeEngine === 'native') { if (nativeVideo.paused) nativeVideo.play(); else nativeVideo.pause(); }
-      else if (activeEngine === 'yt' && player) { if (isPlaying) player.pauseVideo(); else player.playVideo(); }
-    }
-    function updatePlayButton() {
-      const btn = document.getElementById('btn-play');
-      btn.innerHTML = `<i data-lucide="${isPlaying ? 'pause' : 'play'}" class="w-5 h-5 fill-current"></i>`;
-      lucide.createIcons();
-    }
-    function nextVideo() {
-      const pl = playlists.find(p => p.id === activePlaylistId);
-      if (!pl || pl.videos.length === 0) return;
-      currentIndex = isShuffle ? Math.floor(Math.random() * pl.videos.length) : (currentIndex + 1) % pl.videos.length;
-      playVideoAt(currentIndex);
-    }
-    function prevVideo() {
-      const pl = playlists.find(p => p.id === activePlaylistId);
-      if (!pl || pl.videos.length === 0) return;
-      currentIndex = (currentIndex - 1 + pl.videos.length) % pl.videos.length;
-      playVideoAt(currentIndex);
-    }
-    function changeVolume(val) {
-      currentVolume = Number(val); isMuted = currentVolume === 0;
-      nativeVideo.volume = currentVolume / 100; nativeVideo.muted = isMuted;
-      if (player && player.setVolume) { player.setVolume(currentVolume); if (currentVolume > 0 && player.isMuted()) player.unMute(); }
-      updateVolumeIcon();
-    }
-    function toggleMute() {
-      isMuted = !isMuted; nativeVideo.muted = isMuted;
-      if (player) { if (isMuted) player.mute(); else player.unMute(); }
-      const bar = document.getElementById('volume-bar'); if (bar) bar.value = isMuted ? 0 : currentVolume;
-      updateVolumeIcon();
-    }
-    function updateVolumeIcon() {
-      const btn = document.getElementById('btn-mute');
-      let iconName = 'volume-2';
-      if (isMuted || currentVolume === 0) iconName = 'volume-x'; else if (currentVolume < 50) iconName = 'volume-1';
-      btn.innerHTML = `<i data-lucide="${iconName}" class="w-4 h-4"></i>`; lucide.createIcons();
-    }
-    function changeSpeed(rate) {
-      currentSpeed = parseFloat(rate);
-      nativeVideo.playbackRate = currentSpeed;
-      if (player && player.setPlaybackRate) player.setPlaybackRate(currentSpeed);
-    }
-    function toggleShuffle() {
-      isShuffle = !isShuffle;
-      document.getElementById('btn-shuffle').className = isShuffle ? 'p-1.5 rounded-lg text-emerald-400 bg-emerald-500/15' : 'p-1.5 rounded-lg text-zinc-400 hover:text-white';
-    }
-    function toggleRepeat() {
-      isRepeat = !isRepeat;
-      document.getElementById('btn-repeat').className = isRepeat ? 'p-1.5 rounded-lg text-emerald-400 bg-emerald-500/15' : 'p-1.5 rounded-lg text-zinc-400 hover:text-white';
-    }
-    function toggleFullscreen() {
-      const elem = document.getElementById('player-container');
-      if (!document.fullscreenElement) { if (elem.requestFullscreen) elem.requestFullscreen(); else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen(); }
-      else { if (document.exitFullscreen) document.exitFullscreen(); }
-    }
-
-    // 7. จัดการข้อมูล (GAS Proxy)
+    // 6. GAS Proxy CRUD
     async function loadPlaylists() {
       try {
         const res = await fetch(`${RENDER_API_URL}/api/playlists`, { headers: authHeaders() });
-        const json = await res.json();
-        playlists = json.data || [];
-        if (playlists.length > 0 && !activePlaylistId) activePlaylistId = playlists[0].id;
-        renderPlaylists(); renderQueue();
+        const json = await res.json(); playlists = json.data || [];
+        
+        // กู้คืนสถานะการเล่นล่าสุด (Resume)
+        const saved = localStorage.getItem('mytube_resume');
+        let resumed = false;
+        if (saved && playlists.length > 0) {
+          try {
+            const s = JSON.parse(saved);
+            if (s.pl === 'ALL' || playlists.find(p => p.id === s.pl)) {
+              activePlaylistId = s.pl; renderPlaylists(); renderQueue();
+              playVideoAt(s.idx, s.time, false); // โหลดคิวรอไว้โดยไม่ฝืน Auto-play เพื่อกันเบราว์เซอร์บล็อก
+              resumed = true;
+            }
+          } catch(e){}
+        }
+        
+        if (!resumed && playlists.length > 0) {
+          if (!activePlaylistId || activePlaylistId === 'ALL') activePlaylistId = playlists[0].id;
+          renderPlaylists(); renderQueue();
+        }
       } catch (e) {}
     }
-    async function postGAS(payload) {
-      await fetch(`${RENDER_API_URL}/api/playlists`, { method: 'POST', headers: authHeaders(true), body: JSON.stringify(payload) });
-    }
-    async function createPlaylist() {
-      const name = prompt('ตั้งชื่อ Playlist ใหม่:'); if (!name) return;
-      await postGAS({ action: 'create', name }); await loadPlaylists();
-    }
-    async function renamePlaylist(id, oldName, event) {
-      event.stopPropagation(); const name = prompt('แก้ไขชื่อ:', oldName); if (!name || name === oldName) return;
-      await postGAS({ action: 'rename', id, name }); await loadPlaylists();
-    }
-    async function deletePlaylist(id, event) {
-      event.stopPropagation(); if (!confirm('ยืนยันลบ Playlist นี้?')) return;
-      await postGAS({ action: 'delete', id }); if (activePlaylistId === id) activePlaylistId = null; await loadPlaylists();
-    }
-    async function addVideoToPlaylist(video, btnEl) {
-      if (!activePlaylistId) return alert('กรุณาสร้างและเลือก Playlist ก่อน');
-      const pl = playlists.find(p => p.id === activePlaylistId); if (!pl) return;
-      pl.videos.push(video); renderQueue();
-      if (btnEl) { btnEl.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-emerald-400"></i>'; lucide.createIcons(); }
-      await postGAS({ action: 'update_videos', id: pl.id, videos: pl.videos });
-    }
-    async function removeVideoFromPlaylist(index, event) {
-      event.stopPropagation(); const pl = playlists.find(p => p.id === activePlaylistId); if (!pl) return;
-      pl.videos.splice(index, 1);
-      if (currentIndex === index) currentIndex = -1; else if (currentIndex > index) currentIndex--;
-      renderQueue(); await postGAS({ action: 'update_videos', id: pl.id, videos: pl.videos });
-    }
+    async function postGAS(payload) { await fetch(`${RENDER_API_URL}/api/playlists`, { method: 'POST', headers: authHeaders(true), body: JSON.stringify(payload) }); }
+    async function createPlaylist() { const name = prompt('ตั้งชื่อ Playlist ใหม่:'); if (!name) return; await postGAS({ action: 'create', name }); await loadPlaylists(); }
+    async function renamePlaylist(id, oldName, event) { event.stopPropagation(); const name = prompt('แก้ไขชื่อ:', oldName); if (!name || name === oldName) return; await postGAS({ action: 'rename', id, name }); await loadPlaylists(); }
+    async function deletePlaylist(id, event) { event.stopPropagation(); if (!confirm('ยืนยันลบ Playlist นี้?')) return; await postGAS({ action: 'delete', id }); if (activePlaylistId === id) activePlaylistId = null; await loadPlaylists(); }
+    async function addVideoToPlaylist(video, btnEl) { if (!activePlaylistId || activePlaylistId === 'ALL') return alert('กรุณาเลือก Playlist ก่อน (ไม่สามารถเพิ่มในโหมดรวมได้)'); const pl = playlists.find(p => p.id === activePlaylistId); if (!pl) return; pl.videos.push(video); renderQueue(); if (btnEl) { btnEl.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-brand-400"></i>'; lucide.createIcons(); } await postGAS({ action: 'update_videos', id: pl.id, videos: pl.videos }); }
+    async function removeVideoFromPlaylist(index, event) { event.stopPropagation(); if (activePlaylistId === 'ALL') return; const pl = playlists.find(p => p.id === activePlaylistId); if (!pl) return; pl.videos.splice(index, 1); if (currentIndex === index) currentIndex = -1; else if (currentIndex > index) currentIndex--; renderQueue(); await postGAS({ action: 'update_videos', id: pl.id, videos: pl.videos }); }
 
-    // 8. ค้นหา
-    function startVoiceSearch() { /* เหมือนเดิม */ }
-    async function searchYouTube() {
-      const q = document.getElementById('search-input').value.trim(); if (!q) return;
-      switchMobileTab('main');
-      const resultsDiv = document.getElementById('search-results');
-      document.getElementById('search-section').classList.remove('hidden');
-      document.getElementById('search-count-title').innerText = 'กำลังค้นหา...';
-      resultsDiv.innerHTML = '';
-      try {
-        const res = await fetch(`${RENDER_API_URL}/api/search?q=${encodeURIComponent(q)}`, { headers: authHeaders() });
-        const data = await res.json();
-        document.getElementById('search-count-title').innerText = `พบ ${data.results.length} รายการ`;
-        resultsDiv.innerHTML = data.results.map(v => `
-          <div class="bg-zinc-900/70 border border-zinc-800/80 rounded-xl p-2.5 flex gap-3 items-center">
-            <img src="${v.thumbnail}" class="w-20 h-12 object-cover rounded-lg">
-            <div class="flex-1 min-w-0">
-              <div class="text-xs font-medium text-zinc-200 truncate">${v.title.replace(/"/g, '&quot;')}</div>
-              <div class="text-[11px] text-zinc-500 truncate">${v.author} • ${v.duration}</div>
-            </div>
-            <button onclick='addVideoToPlaylist(${JSON.stringify(v).replace(/'/g, "&#39;")}, this)' class="p-2 bg-zinc-800 rounded-lg text-zinc-300">
-              <i data-lucide="plus" class="w-4 h-4"></i>
-            </button>
-          </div>
-        `).join('');
-        lucide.createIcons();
-      } catch (e) { document.getElementById('search-count-title').innerText = 'เกิดข้อผิดพลาด'; }
-    }
+    // 7. Search
+    function startVoiceSearch() { const SR = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SR) return alert('เบราว์เซอร์ไม่รองรับเสียง'); const rec = new SR(); rec.lang = 'th-TH'; const btn = document.getElementById('btn-mic'); btn.className = 'absolute right-1.5 p-1 rounded-lg text-red-400 bg-red-500/20 animate-pulse'; rec.onresult = (e) => { document.getElementById('search-input').value = e.results[0][0].transcript; searchYouTube(); }; rec.onend = () => btn.className = 'absolute right-1.5 p-1 rounded-lg text-zinc-400 hover:text-brand-400 hover:bg-zinc-800'; rec.onerror = () => btn.className = 'absolute right-1.5 p-1 rounded-lg text-zinc-400 hover:text-brand-400 hover:bg-zinc-800'; rec.start(); }
+    async function searchYouTube() { const q = document.getElementById('search-input').value.trim(); if (!q) return; switchMobileTab('main'); document.getElementById('search-section').classList.remove('hidden'); document.getElementById('search-count-title').innerText = 'กำลังค้นหา...'; document.getElementById('search-results').innerHTML = ''; try { const res = await fetch(`${RENDER_API_URL}/api/search?q=${encodeURIComponent(q)}`, { headers: authHeaders() }); const data = await res.json(); document.getElementById('search-count-title').innerText = `พบ ${data.results.length} รายการ`; document.getElementById('search-results').innerHTML = data.results.map(v => `<div class="bg-zinc-900/70 border border-zinc-800/80 rounded-xl p-2.5 flex gap-3 items-center"><img src="${v.thumbnail}" class="w-20 h-12 object-cover rounded-lg"><div class="flex-1 min-w-0"><div class="text-xs font-medium text-zinc-200 truncate">${v.title.replace(/"/g, '&quot;')}</div><div class="text-[11px] text-zinc-500 truncate">${v.author} • ${v.duration}</div></div><button onclick='addVideoToPlaylist(${JSON.stringify(v).replace(/'/g, "&#39;")}, this)' class="p-2 bg-zinc-800 hover:bg-brand-500 hover:text-zinc-950 rounded-lg text-zinc-300 transition-colors"><i data-lucide="plus" class="w-4 h-4"></i></button></div>`).join(''); lucide.createIcons(); } catch (e) { document.getElementById('search-count-title').innerText = 'เกิดข้อผิดพลาด'; } }
     function closeSearchSection() { document.getElementById('search-section').classList.add('hidden'); }
 
-    // 9. วาดหน้าจอ
-    function selectPlaylist(id) { activePlaylistId = id; currentIndex = -1; renderPlaylists(); renderQueue(); if(window.innerWidth < 768) switchMobileTab('queue'); }
-    function renderPlaylists() {
-      document.getElementById('playlist-list').innerHTML = playlists.map(p => {
-        const active = p.id === activePlaylistId;
-        return `
-          <div onclick="selectPlaylist('${p.id}')" class="group flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer ${active ? 'bg-zinc-800 text-white' : 'text-zinc-400'}">
-            <div class="flex items-center gap-2.5 truncate">
-              <i data-lucide="list-music" class="w-4 h-4 ${active ? 'text-emerald-400' : ''}"></i><span class="text-sm truncate">${p.name}</span>
-            </div>
-            <div class="flex gap-1 md:opacity-0 group-hover:opacity-100">
-              <button onclick="renamePlaylist('${p.id}', '${p.name}', event)" class="p-1"><i data-lucide="edit-3" class="w-3.5 h-3.5"></i></button>
-              <button onclick="deletePlaylist('${p.id}', event)" class="p-1 hover:text-red-400"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
-            </div>
-          </div>
-        `;
-      }).join('');
-      lucide.createIcons();
+    // 8. Render UI
+    function selectPlaylist(id) {
+      activePlaylistId = id; currentIndex = -1; renderPlaylists(); renderQueue();
+      if(window.innerWidth < 768) switchMobileTab('queue');
     }
+    
+    function renderPlaylists() {
+      // อัปเดตสถานะปุ่ม ALL
+      const allBtn = document.getElementById('all-playlist-btn');
+      if (activePlaylistId === 'ALL') { allBtn.classList.add('bg-zinc-800', 'text-brand-400'); allBtn.classList.remove('text-zinc-400'); }
+      else { allBtn.classList.remove('bg-zinc-800', 'text-brand-400'); allBtn.classList.add('text-zinc-400'); }
+
+      document.getElementById('playlist-list').innerHTML = playlists.map(p => {
+        const a = p.id === activePlaylistId;
+        return `<div onclick="selectPlaylist('${p.id}')" class="group flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer ${a ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-zinc-200'}">
+          <div class="flex items-center gap-2.5 truncate"><i data-lucide="list-music" class="w-4 h-4 ${a ? 'text-brand-400' : ''}"></i><span class="text-sm truncate">${p.name}</span></div>
+          <div class="flex gap-1 md:opacity-0 group-hover:opacity-100"><button onclick="renamePlaylist('${p.id}', '${p.name}', event)" class="p-1"><i data-lucide="edit-3" class="w-3.5 h-3.5"></i></button><button onclick="deletePlaylist('${p.id}', event)" class="p-1 hover:text-red-400"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button></div>
+        </div>`;
+      }).join(''); lucide.createIcons();
+    }
+
     function renderQueue() {
-      const pl = playlists.find(p => p.id === activePlaylistId);
-      const qEl = document.getElementById('queue-list');
+      const pl = getActivePlaylist(); const qEl = document.getElementById('queue-list');
       if (!pl) { qEl.innerHTML = ''; return; }
-      document.getElementById('current-playlist-title').innerText = pl.name;
-      document.getElementById('current-playlist-count').innerText = `${pl.videos.length} รายการ`;
-
+      const isAllMode = pl.id === 'ALL';
+      document.getElementById('current-playlist-title').innerText = pl.name; 
+      document.getElementById('current-playlist-count').innerText = isAllMode ? `${pl.videos.length} รายการ (โหมดรวม)` : `${pl.videos.length} รายการ • ลาก ⋮⋮ เพื่อจัดลำดับ`;
+      
       qEl.innerHTML = pl.videos.map((v, idx) => {
-        const playing = idx === currentIndex;
-        return `
-          <div onclick="playVideoAt(${idx})" class="group flex items-center gap-2 p-2 rounded-xl cursor-pointer ${playing ? 'bg-emerald-500/10 border border-emerald-500/30' : ''}">
-            <div onclick="event.stopPropagation()" class="drag-handle cursor-grab p-1.5 text-zinc-500 touch-none"><i data-lucide="grip-vertical" class="w-4 h-4"></i></div>
-            <img src="${v.thumbnail}" class="w-12 h-8 object-cover rounded">
-            <div class="flex-1 min-w-0">
-              <div class="text-xs font-medium truncate ${playing ? 'text-emerald-400' : 'text-zinc-200'}">${v.title}</div>
-              <div class="text-[10px] text-zinc-500 truncate">${v.author}</div>
-            </div>
-            <button onclick="removeVideoFromPlaylist(${idx}, event)" class="md:opacity-0 group-hover:opacity-100 p-1.5 text-zinc-500 hover:text-red-400"><i data-lucide="x" class="w-4 h-4"></i></button>
-          </div>
-        `;
-      }).join('');
-      lucide.createIcons();
-
+        const a = idx === currentIndex;
+        return `<div onclick="playVideoAt(${idx})" class="group flex items-center gap-2 p-2 rounded-xl cursor-pointer ${a ? 'bg-brand-500/10 border border-brand-500/30' : 'hover:bg-zinc-800/50'}">
+          ${isAllMode ? '' : `<div onclick="event.stopPropagation()" class="drag-handle cursor-grab p-1.5 text-zinc-500 touch-none"><i data-lucide="grip-vertical" class="w-4 h-4"></i></div>`}
+          <img src="${v.thumbnail}" class="w-12 h-8 object-cover rounded">
+          <div class="flex-1 min-w-0"><div class="text-xs font-medium truncate ${a ? 'text-brand-400' : 'text-zinc-200'}">${v.title}</div><div class="text-[10px] text-zinc-500 truncate">${v.author}</div></div>
+          ${isAllMode ? '' : `<button onclick="removeVideoFromPlaylist(${idx}, event)" class="md:opacity-0 group-hover:opacity-100 p-1.5 text-zinc-500 hover:text-red-400"><i data-lucide="x" class="w-4 h-4"></i></button>`}
+        </div>`;
+      }).join(''); lucide.createIcons();
+      
       if (sortableQueue) sortableQueue.destroy();
-      sortableQueue = new Sortable(qEl, {
-        handle: '.drag-handle', animation: 150, ghostClass: 'sortable-ghost',
-        onEnd: async (evt) => {
-          if (evt.oldIndex === evt.newIndex) return;
-          pl.videos.splice(evt.newIndex, 0, pl.videos.splice(evt.oldIndex, 1)[0]);
-          if (currentIndex === evt.oldIndex) currentIndex = evt.newIndex;
-          else if (currentIndex > evt.oldIndex && currentIndex <= evt.newIndex) currentIndex--;
-          else if (currentIndex < evt.oldIndex && currentIndex >= evt.newIndex) currentIndex++;
-          renderQueue(); await postGAS({ action: 'update_videos', id: pl.id, videos: pl.videos });
-        }
-      });
+      if (!isAllMode) {
+        sortableQueue = new Sortable(qEl, {
+          handle: '.drag-handle', animation: 150, ghostClass: 'sortable-ghost',
+          onEnd: async (evt) => {
+            if (evt.oldIndex === evt.newIndex) return; pl.videos.splice(evt.newIndex, 0, pl.videos.splice(evt.oldIndex, 1)[0]);
+            if (currentIndex === evt.oldIndex) currentIndex = evt.newIndex; else if (currentIndex > evt.oldIndex && currentIndex <= evt.newIndex) currentIndex--; else if (currentIndex < evt.oldIndex && currentIndex >= evt.newIndex) currentIndex++;
+            renderQueue(); await postGAS({ action: 'update_videos', id: pl.id, videos: pl.videos });
+          }
+        });
+      }
     }
   </script>
 </body>
